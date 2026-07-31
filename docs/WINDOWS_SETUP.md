@@ -185,6 +185,29 @@ If the master cannot connect at all, the usual cause on Windows is the firewall
 prompt having been dismissed. Loopback is normally exempt, a second machine is
 not.
 
+### Set the task period at or below the plant's scan period
+
+**The PLC task must run at least as often as the plant scans**, so 50 ms or
+faster against the default. This is not a performance preference, it is a
+correctness one, and here is the case that shows why.
+
+A product occupies the QC station for **exactly one scan**. The plant publishes
+`PRODUCT_AT_QC` and `QC_FAIL` at that scan's boundary, and the program has until
+the next boundary to raise `REJECT_EJECT`. Miss it and the bottle has already
+advanced to the outfeed: a failed product ships, the reject counter does not
+move, and nothing anywhere reports an error. The line looks like it is running
+perfectly.
+
+Measured rather than reasoned about. A controller responding within the scan
+rejects 2 of 18 products, which is the deterministic every-seventh failure
+showing up where it should. The same logic driven from a client slower than the
+scan period rejected 3 of 191 and looked, from every counter available to it,
+like a line with excellent quality.
+
+**If rejects are not firing, check the task period before suspecting the
+program.** A control loop that is merely slow does not announce itself; it
+produces plausible numbers.
+
 ## What comes after this
 
 1. Scenario runs: bottleneck, station failure, changeover, with OEE per scenario
