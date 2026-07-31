@@ -185,6 +185,48 @@ If the master cannot connect at all, the usual cause on Windows is the firewall
 prompt having been dismissed. Loopback is normally exempt, a second machine is
 not.
 
+### The channel configuration, and the one conflict to decide first
+
+A CODESYS Modbus TCP master does not simply expose a slave's address space. You
+configure **channels**, each one a Modbus function with an offset and a length,
+and then map the elements of each channel to variables. Three channels cover
+this device:
+
+| Channel | Function | Offset | Length | Carries |
+|---|---|---|---|---|
+| 1 | Read Discrete Inputs (FC 02) | 0 | 8 | the eight plant inputs |
+| 2 | Read Input Registers (FC 04) | 0 | 3 | `PRODUCED`, `REJECTED`, `SCAN_COUNT` |
+| 3 | Write Multiple Coils (FC 15) | 0 | 5 | the five PLC outputs |
+
+The device also answers Read Coils (FC 01) and Write Single Coil (FC 05) if you
+prefer to split the writes. It answers nothing else, by design, and an unknown
+function code comes back as an exception rather than a hangup.
+
+**The conflict.** `plc/io_declarations.st` declares everything at fixed direct
+addresses, `%QX0.0` through `%IW2`. Those addresses are the **Modbus** addresses,
+which is what makes the generated file readable next to the address map. But
+CODESYS assigns its own `%I`/`%Q` offsets based on where the slave sits in the
+device tree, and they will not start at zero unless it happens to be the first
+device. Two ways out, and they are not equally good:
+
+1. **Map the channels to the global variables by name** in the slave's I/O
+   mapping tab, and delete the `AT %...` clauses from the declarations. The
+   address map still exists once, in `src/vpc/process_image.py`, and the channel
+   table above is the place it lands. **This is the one to take.**
+2. Renumber the `AT` clauses to whatever CODESYS assigned. This works and it
+   quietly recreates the thing the generated file exists to prevent: a second
+   copy of an address map, in a file whose header says do not edit by hand.
+
+If you take option 1, regenerate the declarations without the direct addresses
+rather than hand editing them, and say so in `structured_text_declarations()`.
+A generated file that has been edited by hand is worse than one that was never
+generated, because the next person believes it.
+
+**Verify the mapping before trusting any of it** by writing `SAFETY_RESET_REQUEST`
+from the watch window and confirming coil 4 changes on the plant side, not coil 0
+or coil 3. An off-by-one in a channel offset produces a cell that mostly works,
+which is the worst kind.
+
 ### Set the task period at or below the plant's scan period
 
 **The PLC task must run at least as often as the plant scans**, so 50 ms or
