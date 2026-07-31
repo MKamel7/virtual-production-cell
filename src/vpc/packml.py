@@ -68,6 +68,17 @@ class State(str, Enum):
     EXECUTE = "Execute"
 
 
+#: The numeric encoding PackTags uses on the wire, which is what the PLC holds
+#: and what OPC UA will publish. Kept here so the Structured Text can be checked
+#: against this model rather than trusted.
+PACKTAGS_CODE: dict[str, int] = {
+    "Clearing": 1, "Stopped": 2, "Starting": 3, "Idle": 4, "Suspended": 5,
+    "Execute": 6, "Stopping": 7, "Aborting": 8, "Aborted": 9, "Holding": 10,
+    "Held": 11, "Unholding": 12, "Suspending": 13, "Unsuspending": 14,
+    "Resetting": 15, "Completing": 16, "Complete": 17,
+}
+
+
 class Command(str, Enum):
     """The commands an operator or supervisor may send.
 

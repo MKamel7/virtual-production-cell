@@ -23,6 +23,14 @@ below it is Python and runs anywhere. That is also how a real virtual
 commissioning rig is arranged, with the controller on its own runtime and the
 plant model elsewhere.
 
+## Moving the PLC side to Windows
+
+The controller needs a vendor runtime and those are Windows only, so the project
+splits: plant, state model and tests are developed and verified on Linux, the
+controller runs on Windows. That is how a virtual commissioning rig is normally
+arranged anyway. See `docs/WINDOWS_SETUP.md`, which is explicit about what is
+ready to move and what is not.
+
 ## What exists
 
 **`src/vpc/packml.py`** implements the PackML state model from ISA-TR88.00.02:
@@ -50,6 +58,31 @@ The tests enumerate rather than sample:
   swallowed
 - Abort outranks Stop, checked because transposing them means a machine that
   politely decelerates when somebody hit the emergency button
+
+**`src/vpc/process_image.py`** is the contract between the two halves: the
+address map, held once, from which the PLC side declarations are generated. Two
+copies of an address map is one copy plus a future defect.
+
+It also carries the reason the whole thing is scan based rather than event
+driven. A real PLC copies every input into a buffer, runs the program against
+that frozen snapshot, then writes every output at once, so a signal that changes
+twice in a scan is seen once and nothing the program writes takes effect until
+the scan ends. Those are the semantics people get wrong moving from software to
+control, and a callback based simulation would hide them.
+
+**`src/vpc/cell.py`** is the plant: a conveyor with a filler, a capper and a QC
+reject, advanced one scan at a time and never by a clock. Deterministic, so a
+scenario replays exactly. The one part modelled carefully is the safety chain,
+because it is the part with a wrong answer that hurts somebody: torque is the
+safety channel's to give, not the program's to take, and closing a guard does
+not by itself restore it.
+
+**`plc/cell_control.st`** is the program under test, written to plain IEC 61131-3.
+`tests/test_st_matches_the_model.py` parses it and checks its transition table
+against the verified Python model, because the ST cannot be executed here. That
+test earned itself immediately: the program declared its power on state as 4,
+with a comment saying Aborted, and 4 is Idle. A controller powering up Idle is
+one command away from running a machine nobody reset.
 
 ## Running it
 
