@@ -23,6 +23,9 @@ below it is Python and runs anywhere. That is also how a real virtual
 commissioning rig is arranged, with the controller on its own runtime and the
 plant model elsewhere.
 
+**Picking this up after a break, or on Windows? Start with
+[`docs/RESUME_HERE.md`](docs/RESUME_HERE.md).**
+
 ## Moving the PLC side to Windows
 
 The controller needs a vendor runtime and those are Windows only, so the project
