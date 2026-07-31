@@ -16,13 +16,14 @@ simulation with PLC scan semantics, the process image and address map, the
 generated IO declarations, and `plc/cell_control.st` itself. All of it is
 tested at 100% branch coverage on Linux and none of it depends on the platform.
 
-**Not ready.** The Modbus TCP bridge that carries the process image between the
-runtime and the plant. Until that exists the two halves cannot talk, so the
-sequence below gets the toolchain installed and the program compiling, and the
-bridge is the next thing built.
+**Also ready, as of 31 July 2026.** The Modbus TCP bridge that carries the
+process image between the runtime and the plant. `uv run python -m vpc.server`
+binds port 502 and scans the plant every 50 ms. It was the missing piece when
+this guide was first written and it is no longer missing, so step 8 below is now
+a real integration rather than a plan.
 
-Being explicit about that because a setup guide that quietly assumes a missing
-component wastes an afternoon before anybody notices.
+**Still not ready.** Scenario runs with OEE, the OPC UA server, and the safety
+channel over PROFIsafe framing. None of them block bringing the program up.
 
 ## Choosing the runtime
 
@@ -60,7 +61,7 @@ across two machines is a refinement, not a requirement.
 git clone https://github.com/MKamel7/virtual-production-cell
 ```
 
-It is not pushed yet, so until it is, copy the folder across or push it first.
+The repository is private, so sign in to `gh` or use a token on that machine.
 
 ### 2. Install Python and uv on Windows
 
@@ -152,13 +153,44 @@ Two properties matter more than the sequencing and are quick to check:
   has been commanded. A machine that restarts the moment a door shuts is a
   machine that restarts while somebody is still inside it.
 
+### 8. Connect the runtime to the plant
+
+Start the plant on the same machine first. One side of a dual boot at a time is
+fine here, since the plant is Python and runs on Windows too.
+
+```
+uv run python -m vpc.server
+```
+
+It listens on **502** and scans every 50 ms. In the IDE, configure a **Modbus TCP
+master** pointing at `127.0.0.1:502`, unit id 1, and map:
+
+| Direction | Modbus space | Addresses |
+|---|---|---|
+| PLC writes | coils | 0 to 4, per `plc/io_declarations.st` |
+| PLC reads | discrete inputs | 0 to 7 |
+| PLC reads | input registers | 0 to 2 |
+
+Two things to check before believing any of it:
+
+- **Before the first scan, every input reads low**, including `SAFETY_OK`. That
+  is the correct de-energised default and not a fault. It comes up as soon as the
+  plant scans.
+- **`SCAN_COUNT` (input register 2) must be increasing.** If it is not, the
+  master is connected to something that is not scanning, and every other reading
+  is a stale snapshot rather than a live one. Check this before debugging
+  anything else.
+
+If the master cannot connect at all, the usual cause on Windows is the firewall
+prompt having been dismissed. Loopback is normally exempt, a second machine is
+not.
+
 ## What comes after this
 
-1. The Modbus TCP bridge, so the runtime and the plant exchange the process image
-2. Scenario runs: bottleneck, station failure, changeover, with OEE per scenario
-3. The OPC UA server, with certificates and sign and encrypt rather than
+1. Scenario runs: bottleneck, station failure, changeover, with OEE per scenario
+2. The OPC UA server, with certificates and sign and encrypt rather than
    security `None`
-4. The safety channel proper, carrying the guard and reset over the PROFIsafe
+3. The safety channel proper, carrying the guard and reset over the PROFIsafe
    framing already built and tested in the fault injection harness
 
 ## If something does not work

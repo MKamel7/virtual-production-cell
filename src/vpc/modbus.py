@@ -135,6 +135,42 @@ def parse(frame: bytes) -> Request:
     return Request(transaction_id, unit_id, function, 0, 0)
 
 
+#: The largest frame this device will wait for. Modbus caps a PDU at 253 bytes,
+#: plus the seven byte MBAP header. The cap exists because the length field is
+#: read before the body arrives, so a frame declaring 60000 bytes would leave the
+#: server waiting for data that is never coming while the connection stays open.
+#: A stream that says that is not Modbus.
+MAX_FRAME = MBAP_LENGTH + 253
+
+
+def take_frame(stream: bytes) -> tuple[bytes | None, bytes]:
+    """Split one complete frame off the front of a stream, if there is one.
+
+    TCP is a byte stream and Modbus frames are not self delimiting beyond the
+    length field, so a read can deliver half a frame, three frames, or two and a
+    half. `parse` deliberately demands an exact frame and refuses anything else,
+    which is the right contract for it and useless against a socket, so the
+    splitting happens here.
+
+    Returns the frame and what is left, or `(None, stream)` when more bytes are
+    needed. Kept pure and out of the server for the same reason as everything
+    else in this module: it can be tested against every split point without a
+    network.
+    """
+    # The length field is the last two bytes of the header's first six, and it
+    # counts the unit id onwards, so a complete frame is those six plus it.
+    if len(stream) < 6:
+        return None, stream
+    (length,) = struct.unpack(">H", stream[4:6])
+    total = 6 + length
+    if total > MAX_FRAME:
+        raise MalformedFrame(
+            f"frame declares {total} bytes, more than the {MAX_FRAME} byte maximum")
+    if len(stream) < total:
+        return None, stream
+    return stream[:total], stream[total:]
+
+
 def _exception(request: Request, code: int) -> bytes:
     pdu = struct.pack(">BB", request.function | 0x80, code)
     return _wrap(request, pdu)

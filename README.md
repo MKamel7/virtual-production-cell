@@ -87,10 +87,47 @@ test earned itself immediately: the program declared its power on state as 4,
 with a comment saying Aborted, and 4 is Idle. A controller powering up Idle is
 one command away from running a machine nobody reset.
 
+**`src/vpc/modbus.py`** is Modbus TCP, implemented rather than imported. Every
+function in it goes from bytes to bytes with no socket anywhere, which is what
+makes the wiring layer exhaustively testable: every function code, every
+exception path, every boundary, every malformed frame, and every split point of
+a frame arriving one byte at a time. Modbus TCP is small, and a dependency whose
+API moves between minor versions is a worse bet than 200 lines that do not.
+
+**`src/vpc/server.py`** is the bridge, and it is the reason everything above is
+shaped the way it is. The PLC is the client and the plant is the server, which
+is not arbitrary: the PLC writes coils and reads discrete inputs and input
+registers, and those directions are what the Modbus address spaces mean. To a
+controller this simulation is a remote IO drop that happens to think.
+
+It runs in **one thread**, on a selector whose timeout expires at the next scan
+boundary. A socket thread plus a scan thread plus a lock would fix the race and
+still be wrong, because a lock lets a coil write land in the *middle* of a scan
+and the entire point of a process image is that it cannot. So network writes
+land in a staged image that the plant sees only at the boundary:
+
+> A controller that sets `CONVEYOR_RUN` and takes it back within one scan period
+> has, from the plant's point of view, done nothing at all.
+
+That is what happens on a real machine, and it is a class of bug a callback
+simulation makes invisible. `tests/test_server.py` pins it, along with the
+control case, because a boundary test passes trivially on a server that ignores
+writes entirely.
+
+Verified against **pymodbus** as well as its own tests, since a server checked
+only by the client that shares its assumptions proves self-consistency rather
+than a wire format.
+
 ## Running it
 
 ```sh
 uv run --group dev pytest -q
+```
+
+To run the plant for a controller to connect to, default port 502:
+
+```sh
+uv run python -m vpc.server
 ```
 
 100% statement and branch coverage is gated, along with `ruff` and

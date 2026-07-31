@@ -7,8 +7,8 @@ If you are reading this after a reboot, this is the handover.
 
 | Repo | Visibility | State |
 |---|---|---|
-| [virtual-production-cell](https://github.com/MKamel7/virtual-production-cell) | **private** | P4, this repo, 3 commits, 105 tests |
-| [fault-injection-harness](https://github.com/MKamel7/fault-injection-harness) | public | P2, 27 faults, 195 tests, independently reviewed |
+| [virtual-production-cell](https://github.com/MKamel7/virtual-production-cell) | **private** | P4, this repo, 132 tests |
+| [fault-injection-harness](https://github.com/MKamel7/fault-injection-harness) | public | P2, 27 faults, independently reviewed |
 | [embedded-test-automation](https://github.com/MKamel7/embedded-test-automation) | public | P1, v3.1, 80 tests |
 
 All four repos including the vault were committed and pushed before the reboot.
@@ -55,17 +55,20 @@ channels could be made to lie, which made the headline diversity result partly
 self-fulfilling. All findings are closed and recorded in
 `fault-injection-harness/docs/REVIEW.md`.
 
+## Built since this note was written (31 July 2026, on the Windows side)
+
+**The socket server and the scan loop exist.** `uv run python -m vpc.server`
+binds port 502 and scans the plant every 50 ms, so the PLC and the plant can now
+exchange IO and `WINDOWS_SETUP.md` step 8 is a real integration. Single threaded
+on a selector, so a coil write cannot land in the middle of a scan; verified
+against pymodbus as well as its own tests.
+
 ## What is NOT built yet, so you do not go looking for it
 
-**The socket server and the scan loop.** The Modbus protocol layer is complete
-and exhaustively tested, but nothing binds a port yet, so the PLC and the plant
-cannot exchange IO. Steps 1 to 7 of `WINDOWS_SETUP.md` are still worth doing
-without it: they get the toolchain installed and the state machine verified
-standalone.
-
-After that: scenario runs with OEE, OPC UA with real certificates rather than
-security `None`, and the safety channel carrying guard and reset over the
-PROFIsafe framing already built and tested in P2.
+Scenario runs with OEE, OPC UA with real certificates rather than security
+`None`, and the safety channel carrying guard and reset over the PROFIsafe
+framing already built and tested in P2. None of them block bringing the control
+program up on a runtime.
 
 ## Two things to keep straight when you come back
 

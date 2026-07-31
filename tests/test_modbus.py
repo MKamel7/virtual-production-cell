@@ -20,6 +20,8 @@ import pytest
 
 from vpc.modbus import (
     COIL_ON,
+    MAX_FRAME,
+    MBAP_LENGTH,
     Exception_,
     Function,
     MalformedFrame,
@@ -27,6 +29,7 @@ from vpc.modbus import (
     build_write_single_coil,
     handle,
     parse,
+    take_frame,
 )
 from vpc.process_image import Coil, Discrete, InputRegister, ProcessImage
 
@@ -292,3 +295,74 @@ def test_a_truncated_write_multiple_coils_frame_is_rejected() -> None:
              + bytes([Function.WRITE_MULTIPLE_COILS]) + body)
     with pytest.raises(MalformedFrame, match="at least 5"):
         parse(frame)
+
+
+# --- splitting a stream into frames ------------------------------------------
+# `parse` demands an exact frame, which is the right contract for it and useless
+# against a socket, where a read delivers whatever happened to have arrived.
+# `take_frame` is the seam between the two and it is pure, so every split point
+# can be checked here rather than discovered during integration.
+def test_a_stream_shorter_than_the_length_field_yields_nothing() -> None:
+    frame, rest = take_frame(b"\x00\x01\x00")
+
+    assert frame is None
+    assert rest == b"\x00\x01\x00", "a partial header must be kept, not consumed"
+
+
+def test_one_whole_frame_comes_off_the_front() -> None:
+    whole = build_read_request(Function.READ_COILS, 0, 4)
+    frame, rest = take_frame(whole)
+
+    assert frame == whole
+    assert rest == b""
+
+
+def test_frames_come_off_one_at_a_time() -> None:
+    first = build_read_request(Function.READ_COILS, 0, 4, transaction_id=1)
+    second = build_write_single_coil(Coil.CONVEYOR_RUN, True, transaction_id=2)
+
+    frame, rest = take_frame(first + second)
+    assert frame == first
+
+    frame, rest = take_frame(rest)
+    assert frame == second
+    assert rest == b""
+
+
+def test_a_frame_arriving_one_byte_at_a_time_appears_exactly_when_it_is_whole() -> None:
+    """The property that matters, checked at every split point rather than one.
+
+    A server that answered early would be acting on a frame it had not finished
+    reading; one that answered late would stall the master waiting for bytes it
+    already had.
+    """
+    whole = build_write_single_coil(Coil.CONVEYOR_RUN, True)
+    buffer = b""
+    answers = []
+    for byte in whole:
+        buffer += bytes([byte])
+        frame, buffer = take_frame(buffer)
+        if frame is not None:
+            answers.append(frame)
+
+    assert answers == [whole]
+    assert buffer == b""
+
+
+def test_a_frame_declaring_an_impossible_length_is_malformed() -> None:
+    """Not merely incomplete. The length is read before the body arrives, so a
+    server that trusted it would wait forever for bytes no Modbus master will
+    ever send."""
+    with pytest.raises(MalformedFrame, match="maximum"):
+        take_frame(struct.pack(">HHH", 1, 0, 60000) + b"\x01")
+
+
+def test_the_largest_legal_frame_is_accepted() -> None:
+    """The other side of the boundary, so the cap cannot quietly reject real traffic."""
+    body = b"\x00" * (MAX_FRAME - MBAP_LENGTH)
+    whole = struct.pack(">HHHB", 1, 0, len(body) + 1, 1) + body
+    frame, rest = take_frame(whole)
+
+    assert len(whole) == MAX_FRAME
+    assert frame == whole
+    assert rest == b""
