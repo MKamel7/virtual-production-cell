@@ -244,6 +244,7 @@ def test_an_unsupported_function_gets_an_exception_not_a_hangup() -> None:
 
 
 # --- the property the address spaces exist to guarantee ----------------------
+@pytest.mark.verifies("SR-04")
 def test_the_same_address_is_a_different_object_in_each_space() -> None:
     """Modbus keeps bits and words in separate spaces, and that is load bearing.
 
@@ -264,6 +265,7 @@ def test_the_same_address_is_a_different_object_in_each_space() -> None:
     )
 
 
+@pytest.mark.verifies("SR-04")
 def test_there_is_no_way_to_write_a_safety_input_at_all() -> None:
     """SAFETY_OK is discrete input 6 and there is no coil 6.
 

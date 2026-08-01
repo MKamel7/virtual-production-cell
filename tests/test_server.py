@@ -76,6 +76,7 @@ COIL_ECHO = 7 + 5
 
 
 # --- the scan boundary, which is why this server is single threaded ----------
+@pytest.mark.verifies("SR-12")
 def test_a_coil_written_and_withdrawn_inside_one_scan_never_reaches_the_plant() -> None:
     """The property the whole design exists to protect.
 

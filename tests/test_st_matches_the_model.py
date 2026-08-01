@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from vpc.packml import ACTING, ON_COMPLETE, PACKTAGS_CODE, State
 
 ST = Path(__file__).resolve().parents[1] / "plc" / "cell_control.st"
@@ -32,6 +34,7 @@ def test_the_encoding_covers_every_state_exactly_once() -> None:
     assert sorted(PACKTAGS_CODE.values()) == list(range(1, 18))
 
 
+@pytest.mark.verifies("SR-07")
 def test_the_plc_powers_on_in_aborted() -> None:
     """Not Idle, and the difference matters.
 
@@ -106,6 +109,7 @@ def test_abort_is_checked_before_stop() -> None:
     )
 
 
+@pytest.mark.verifies("SR-01")
 def test_outputs_are_dropped_whenever_torque_is_withheld() -> None:
     """Unconditionally, and before the state machine runs.
 
@@ -157,6 +161,7 @@ def test_the_safety_reset_request_is_not_derived_from_cmdreset() -> None:
     )
 
 
+@pytest.mark.verifies("SR-06")
 def test_a_link_watchdog_exists_and_takes_the_abort_path() -> None:
     """A cell that cannot tell a dead link from a quiet one is not industrial.
 
@@ -179,6 +184,7 @@ def test_a_link_watchdog_exists_and_takes_the_abort_path() -> None:
     )
 
 
+@pytest.mark.verifies("SR-07")
 def test_the_link_starts_faulted() -> None:
     """Fail safe on power up, and the same reasoning as the Aborted power on
     state: a link that has never delivered a scan is not a healthy link, it is
@@ -200,6 +206,7 @@ def test_outputs_are_gated_on_the_link_as_well_as_on_torque() -> None:
     )
 
 
+@pytest.mark.verifies("SR-08")
 def test_every_command_is_cleared_at_the_end_of_the_scan() -> None:
     """One shot, so a command that arrives in a state which ignores it is
     discarded rather than latched.
@@ -222,6 +229,7 @@ def test_every_command_is_cleared_at_the_end_of_the_scan() -> None:
         )
 
 
+@pytest.mark.verifies("SR-08")
 def test_the_clearing_block_is_the_last_thing_the_program_does() -> None:
     """Anything reading a command after it is cleared would read FALSE always.
 
@@ -232,4 +240,42 @@ def test_the_clearing_block_is_the_last_thing_the_program_does() -> None:
     body = source()
     assert body.index("SAFETY_RESET_REQUEST :=") < body.index("COMMANDS ARE ONE SHOT"), (
         "commands are cleared before the outputs that read them are computed"
+    )
+
+
+@pytest.mark.verifies("SR-09")
+def test_every_state_except_execute_leaves_the_cell_still() -> None:
+    """Stricter than PackML requires, and deliberately so.
+
+    A machine that keeps doing things while it is Holding has a Held state that
+    means nothing. The ELSE branch is the one that matters: it is what runs in
+    all sixteen other states, including every acting state.
+    """
+    body = source()
+    start = body.index("IF PMLState = 6 AND")
+    otherwise = body.index("ELSE", start)
+    block = body[otherwise:body.index("END_IF;", otherwise)]
+
+    for output in ("CONVEYOR_RUN", "FILLER_DOSE", "CAPPER_ACTUATE", "REJECT_EJECT"):
+        assert re.search(rf"{output}\s*:=\s*FALSE;", block), (
+            f"{output} is not dropped outside Execute, so the cell can act in a "
+            f"state that is supposed to be still"
+        )
+
+
+@pytest.mark.verifies("SR-10")
+def test_a_guard_opening_aborts_once_on_the_edge() -> None:
+    """Once, not every scan while it stays open.
+
+    Re-triggering continuously would make the abort indistinguishable from a
+    fault storm, and would stop the operator ever clearing it: every Clear would
+    be overridden by the next scan's abort before it could take effect.
+    """
+    body = source()
+    assert re.search(r"IF\s+GuardWasClosed\s+AND\s+NOT\s+GUARD_CLOSED\s+THEN", body), (
+        "the guard abort is not edge triggered"
+    )
+    edge = body.index("IF GuardWasClosed AND NOT GUARD_CLOSED THEN")
+    assert re.search(r"GuardWasClosed\s*:=\s*GUARD_CLOSED;", body[edge:]), (
+        "GuardWasClosed is never updated, so the edge can never be seen again"
     )

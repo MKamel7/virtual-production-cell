@@ -1,0 +1,202 @@
+# The safety analysis, as data rather than prose.
+#
+# Held here and not in the markdown for the same reason the address map lives in
+# one enum: the traceability gate reads this file, the documents are generated
+# from it, and a requirement that exists only in a paragraph is a requirement
+# nobody can check.
+#
+# Every prose field is a folded block scalar, so it can contain colons, commas
+# and quotes without the file becoming a puzzle about YAML.
+#
+# WHAT THIS IS NOT, stated once here and again in docs/SAFETY_ARGUMENT.md. There
+# is no Performance Level and no SIL. Both come from a risk assessment with real
+# severity, exposure and avoidance judgements about a real machine, made by
+# people who have seen it. This is a simulated cell on a laptop. What follows is
+# a hazard derived requirement set with every requirement tied to a test, which
+# is a useful thing and is not a safety rating.
+
+hazards:
+  - id: HAZ-01
+    text: >-
+      Conveyor moves while a person is inside the guarded area
+    harm: >-
+      Entanglement or crush injury at the belt or transfer points
+    cause: >-
+      Motion commanded, or torque present, while the guard is open
+
+  - id: HAZ-02
+    text: >-
+      The cell resumes motion after a stop without anyone asking it to
+    harm: >-
+      Injury to a person who entered believing the machine was stopped
+    cause: >-
+      A latched command, an automatic reset, or torque returning while the
+      program is still commanding motion
+
+  - id: HAZ-03
+    text: >-
+      The capper actuates while a hand is at the station
+    harm: >-
+      Crush or pinch injury
+    cause: >-
+      An actuator commanded in a state where the cell should be still
+
+  - id: HAZ-04
+    text: >-
+      The controller commands the machine using a view of the plant that is no
+      longer true
+    harm: >-
+      Any of the above, plus damage, because every interlock the program applies
+      is computed from inputs that stopped being real
+    cause: >-
+      A dead link whose inputs hold their last value, or a plant that has
+      stopped while its connection stays open
+
+  - id: HAZ-05
+    text: >-
+      A defective bottle leaves the cell
+    harm: >-
+      Product safety. An unfilled or uncapped bottle reaching a consumer
+    cause: >-
+      The reject not firing inside the window the product is at QC
+
+goals:
+  - id: SG-01
+    text: >-
+      No actuator shall be energised while torque is unavailable
+    hazards: [HAZ-01, HAZ-03]
+
+  - id: SG-02
+    text: >-
+      Motion shall resume only after a deliberate human action, and never as a
+      side effect of a condition clearing
+    hazards: [HAZ-02]
+
+  - id: SG-03
+    text: >-
+      The controller shall not command motion on plant data it cannot confirm
+      is current
+    hazards: [HAZ-04]
+
+  - id: SG-04
+    text: >-
+      The cell shall be still in every state except Execute
+    hazards: [HAZ-01, HAZ-03]
+
+  - id: SG-05
+    text: >-
+      A product failing inspection shall be ejected before it can leave
+    hazards: [HAZ-05]
+
+requirements:
+  - id: SR-01
+    goal: SG-01
+    text: >-
+      Every actuator output shall be de-energised whenever SAFETY_OK is false,
+      in any state, before the state machine runs
+    rationale: >-
+      Leaving an output asserted while torque returns is how a machine starts
+      mid cycle. Ordering the check before the state machine means no branch can
+      re-assert an output after it.
+
+  - id: SR-02
+    goal: SG-02
+    text: >-
+      Closing the guard shall not restore torque
+    rationale: >-
+      A machine that moves the moment a door shuts moves while somebody is still
+      inside it. Closing a door is one action; restarting needs two.
+
+  - id: SR-03
+    goal: SG-02
+    text: >-
+      Torque shall be restored only on a rising edge of the reset request, and
+      only with the guard closed
+    rationale: >-
+      A held reset collapses the two deliberate actions into one. The guard is
+      checked by the safety channel itself rather than trusted from the
+      controller, so the check does not depend on the thing it protects against.
+
+  - id: SR-04
+    goal: SG-01
+    text: >-
+      The controller shall have no means of asserting its own safety input
+    rationale: >-
+      Arithmetic rather than policy. Modbus keeps bits and words in separate
+      address spaces and there is no coil at the safety input's address, so the
+      frame that would command it is refused for want of an address.
+
+  - id: SR-05
+    goal: SG-03
+    text: >-
+      A process image missing any signal shall be refused rather than defaulted
+    rationale: >-
+      An absent key reads as false, which reads as de-energised, which for
+      GUARD_CLOSED and SAFETY_OK is the dangerous direction. It would look like
+      a healthy machine with the door shut.
+
+  - id: SR-06
+    goal: SG-03
+    text: >-
+      The controller shall abort when the plant heartbeat stops advancing for
+      longer than the stall limit
+    rationale: >-
+      Zeroing inputs on a channel error only covers failures the master notices.
+      A plant hung with its socket open is invisible to that, and SCAN_COUNT is
+      already a heartbeat.
+
+  - id: SR-07
+    goal: SG-02
+    text: >-
+      The controller shall power on in Aborted, and shall treat a link that has
+      never delivered a heartbeat as faulted
+    rationale: >-
+      A controller powering up Idle is one command away from running a machine
+      nobody has reset. An unproven link is not a healthy one.
+
+  - id: SR-08
+    goal: SG-02
+    text: >-
+      A command not acted upon in the scan it arrives shall be discarded, not
+      latched
+    rationale: >-
+      A latched command fires the next time the machine enters a state that
+      consumes it, with nobody asking. Found on the running cell with CmdReset
+      and CmdStart both sitting true in Execute.
+
+  - id: SR-09
+    goal: SG-04
+    text: >-
+      Actuators shall be energised only in Execute
+    rationale: >-
+      Stricter than PackML requires. A machine that keeps doing things while it
+      is Holding has a Held state that means nothing.
+
+  - id: SR-10
+    goal: SG-01
+    text: >-
+      A guard opening shall abort the cell exactly once, on the edge
+    rationale: >-
+      Re-triggering every scan while the guard stays open would make the abort
+      indistinguishable from a fault storm, and would stop the operator ever
+      clearing it.
+
+  - id: SR-11
+    goal: SG-05
+    text: >-
+      A product failing inspection shall be ejected within the scan it is
+      present at the QC station
+    rationale: >-
+      The dwell at QC is one scan. A control loop slower than the plant scan
+      misses the window, ships the product, moves no counter and reports no
+      error.
+
+  - id: SR-12
+    goal: SG-03
+    text: >-
+      The plant shall not act on an output written and withdrawn within a
+      single scan
+    rationale: >-
+      The process image is frozen at the scan boundary. A simulation that let an
+      intra scan change through could not reproduce a whole class of real
+      control bug.

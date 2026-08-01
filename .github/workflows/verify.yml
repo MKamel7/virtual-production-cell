@@ -38,7 +38,27 @@ jobs:
           --html=report-py${{ matrix.python-version }}.html --self-contained-html
           --junitxml=junit-py${{ matrix.python-version }}.xml
 
-      - name: Upload the test report
+      # The safety argument is rebuilt on every push rather than committed and
+      # trusted. A traceability matrix that is only as current as the last time
+      # someone remembered to regenerate it is not evidence of anything. This
+      # exits non-zero on a gap in either direction: a requirement nobody tests,
+      # or a test claiming a requirement that does not exist.
+      - name: Rebuild the traceability matrix
+        run: uv run --group dev python scripts/check_traceability.py
+
+      # The generated matrix is committed too, so a reader of the repository can
+      # see it without running anything. This catches the case where the
+      # requirements or the markers change and the checked in report goes stale:
+      # the diff is the failure message.
+      - name: Fail if the committed matrix is stale
+        run: |
+          if ! git diff --quiet -- report/; then
+            echo "::error::report/ is out of date. Run scripts/check_traceability.py and commit."
+            git --no-pager diff -- report/
+            exit 1
+          fi
+
+      - name: Upload the evidence
         if: always()
         uses: actions/upload-artifact@v5
         with:
@@ -46,3 +66,4 @@ jobs:
           path: |
             report-py${{ matrix.python-version }}.html
             junit-py${{ matrix.python-version }}.xml
+            report/traceability.md

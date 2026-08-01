@@ -15,6 +15,8 @@ take, and closing a guard must not by itself start the line.
 
 from __future__ import annotations
 
+import pytest
+
 from vpc.cell import CAP_SCANS, FILL_SCANS, Cell
 from vpc.process_image import Coil, Discrete, InputRegister, ProcessImage
 
@@ -44,6 +46,7 @@ def test_the_plant_acts_on_the_outputs_written_before_the_scan() -> None:
     assert result.discretes[Discrete.PRODUCT_AT_FILLER]
 
 
+@pytest.mark.verifies("SR-12")
 def test_inputs_are_a_snapshot_and_not_a_live_view() -> None:
     """Mutating the returned image must not reach back into the plant."""
     cell = Cell()
@@ -57,6 +60,7 @@ def test_inputs_are_a_snapshot_and_not_a_live_view() -> None:
     assert cell.torque_available, "writing to the image changed the plant"
 
 
+@pytest.mark.verifies("SR-05")
 def test_a_process_image_missing_a_signal_is_refused() -> None:
     """An absent key reads as de-energised, which is the dangerous default.
 
@@ -162,6 +166,7 @@ def test_qc_reports_nothing_when_the_station_is_empty() -> None:
 
 
 # --- the safety channel, which the PLC cannot overrule -----------------------
+@pytest.mark.verifies("SR-01")
 def test_the_conveyor_cannot_move_while_torque_is_withheld() -> None:
     """The program asking is not the same as the machine being allowed."""
     cell = Cell()
@@ -173,6 +178,7 @@ def test_the_conveyor_cannot_move_while_torque_is_withheld() -> None:
     assert cell.produced == 0
 
 
+@pytest.mark.verifies("SR-02")
 def test_closing_the_guard_does_not_restart_the_line() -> None:
     """A machine that moves the moment a door shuts moves while somebody is inside.
 
@@ -189,6 +195,7 @@ def test_closing_the_guard_does_not_restart_the_line() -> None:
     assert cell.at_filler is None, "the line restarted when the guard closed"
 
 
+@pytest.mark.verifies("SR-03")
 def test_safety_cannot_be_reset_while_the_guard_is_open() -> None:
     cell = Cell()
     cell.open_guard()
@@ -295,6 +302,7 @@ def scan_with(cell: Cell, image: ProcessImage, **coils: bool) -> ProcessImage:
     return cell.scan(image)
 
 
+@pytest.mark.verifies("SR-03")
 def test_a_reset_request_restores_torque_once_the_guard_is_closed() -> None:
     cell = Cell()
     image = ProcessImage()
@@ -307,6 +315,7 @@ def test_a_reset_request_restores_torque_once_the_guard_is_closed() -> None:
     assert cell.torque_available
 
 
+@pytest.mark.verifies("SR-03")
 def test_a_reset_request_with_the_guard_still_open_does_nothing() -> None:
     """The safety channel checks the guard itself rather than trusting the PLC.
 
@@ -323,6 +332,7 @@ def test_a_reset_request_with_the_guard_still_open_does_nothing() -> None:
     assert not cell.torque_available
 
 
+@pytest.mark.verifies("SR-03")
 def test_a_held_reset_does_not_restart_the_machine_when_the_guard_closes() -> None:
     """The property that makes this a manual reset rather than an interlock.
 
@@ -346,6 +356,7 @@ def test_a_held_reset_does_not_restart_the_machine_when_the_guard_closes() -> No
     assert not cell.torque_available, "a held reset restarted the machine"
 
 
+@pytest.mark.verifies("SR-03")
 def test_releasing_and_pressing_again_does_restore_torque() -> None:
     """The control case. Without it the test above passes on a cell that has
     simply broken its reset."""
@@ -361,3 +372,34 @@ def test_releasing_and_pressing_again_does_restore_torque() -> None:
     image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
 
     assert cell.torque_available
+
+
+@pytest.mark.verifies("SR-11")
+def test_a_failing_product_must_be_ejected_in_the_scan_it_is_at_qc() -> None:
+    """The dwell at QC is exactly one scan, and that is the whole requirement.
+
+    A controller that computes REJECT_EJECT from inputs it read one scan ago has
+    already lost: the product advanced to the outfeed at the boundary. The
+    failure is silent, because the product ships, the reject counter does not
+    move and nothing reports an error.
+
+    Measured both ways when this was found: an in-scan controller rejects 2 of
+    18 products, and the same logic driven slower than the scan rejected 3 of
+    191 and looked, from every counter available to it, like excellent quality.
+    """
+    cell = Cell()
+    image = ProcessImage()
+
+    # a controller that acts within the scan, as the PLC task does
+    for _ in range(60):
+        image.coils[Coil.CONVEYOR_RUN] = True
+        image.coils[Coil.FILLER_DOSE] = image.discretes[Discrete.PRODUCT_AT_FILLER]
+        image.coils[Coil.CAPPER_ACTUATE] = image.discretes[Discrete.PRODUCT_AT_CAPPER]
+        image.coils[Coil.REJECT_EJECT] = (image.discretes[Discrete.PRODUCT_AT_QC]
+                                          and image.discretes[Discrete.QC_FAIL])
+        image = cell.scan(image)
+
+    assert cell.rejected > 0, "no failing product was ever ejected"
+    assert cell.ejected, "the reject path produced no ejected product"
+    for product in cell.completed:
+        assert product.good, "a defective product reached the outfeed"
