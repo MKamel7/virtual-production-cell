@@ -122,6 +122,14 @@ set_parameter(plant, "9102", "[127, 0, 0, 1]", "slave IP address")
 set_parameter(plant, "9103", "502", "slave port")
 set_parameter(plant, "9100", "1", "slave unit id")
 
+# Reconnect after the plant goes away, which on a commissioning rig it does
+# constantly: every restart of the simulation, every crash, every edit. The
+# vendor default is FALSE, so a master that loses its slave stays disconnected
+# until the whole application is restarted, and no amount of the plant being
+# healthy brings it back. That turns a five second restart into a full
+# download, and it is indistinguishable at the HMI from the plant being dead.
+set_parameter(client, "9002", "TRUE", "auto reconnect")
+
 # ---- application objects ---------------------------------------------------
 app = proj.find("Application", True)[0]
 
