@@ -126,13 +126,13 @@ class CellServer:
         self._streams[connection] = b""
 
     def _receive(self, connection: socket.socket) -> None:
-        data = connection.recv(READ_SIZE)
-        if not data:
-            self._drop(connection)
-            return
-
-        stream = self._streams[connection] + data
         try:
+            data = connection.recv(READ_SIZE)
+            if not data:
+                self._drop(connection)
+                return
+
+            stream = self._streams[connection] + data
             while True:
                 frame, stream = take_frame(stream)
                 if frame is None:
@@ -144,6 +144,22 @@ class CellServer:
             # and answering it would be pretending to have understood something
             # that was never said. Hanging up is the honest reply, and it is
             # what a real device does.
+            self._drop(connection)
+            return
+        except OSError:
+            # An abrupt reset rather than a graceful close: a controller
+            # rebooting, a cable pulled, a runtime logging out. Windows raises
+            # ConnectionResetError here and Linux raises ECONNRESET or EPIPE
+            # from sendall, and all of them mean the same thing, so they are
+            # handled the same way as a peer that hung up politely.
+            #
+            # This is not defensive coding for its own sake. Before it existed
+            # the exception escaped `run` and killed the whole plant, which was
+            # found by a CODESYS runtime logging out after 101,000 scans of
+            # otherwise correct operation. **A simulated device that dies when
+            # its master disconnects cannot be used to commission anything**,
+            # because the first thing anyone does with a controller is
+            # repeatedly download to it.
             self._drop(connection)
             return
         self._streams[connection] = stream

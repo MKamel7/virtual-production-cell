@@ -317,3 +317,56 @@ def test_the_write_echo_is_the_value_the_master_sent(value: int) -> None:
         response = ask(server, client, frame, COIL_ECHO)
 
     assert struct.unpack(">H", response[-2:])[0] == value
+
+
+# --- the peer going away rudely ----------------------------------------------
+def hard_reset_client(server: CellServer) -> socket.socket:
+    """A client whose close sends RST rather than FIN.
+
+    SO_LINGER with a zero timeout is the portable way to make a close abrupt,
+    which is what a rebooting controller or a pulled cable looks like from the
+    other end. A graceful close is already covered; this is the case that
+    killed the plant in the field.
+    """
+    client = socket.create_connection(("127.0.0.1", server.port), timeout=5)
+    client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                      struct.pack("hh", 1, 0))
+    server.poll(1.0)
+    return client
+
+
+def test_a_connection_reset_drops_the_peer_and_does_not_kill_the_plant() -> None:
+    """Found in production, not in review.
+
+    A CODESYS runtime logged out after 101,000 scans of correct operation and
+    reset the connection instead of closing it. The exception escaped `run` and
+    took the whole plant with it. A simulated device that dies when its master
+    disconnects cannot commission anything, because downloading repeatedly is
+    the first thing anyone does with a controller.
+    """
+    with running() as server:
+        client = hard_reset_client(server)
+        client.sendall(build_write_single_coil(Coil.CONVEYOR_RUN, True))
+        server.poll(1.0)
+        client.close()          # sends RST, not FIN
+
+        server.poll(1.0)        # must not raise
+        server.tick()
+
+        assert server._streams == {}, "the reset peer was not dropped"
+        assert server.scans == 1, "the plant stopped scanning"
+
+
+def test_the_plant_keeps_serving_after_a_peer_resets() -> None:
+    """The property that actually matters: the next master still gets served."""
+    with running() as server:
+        first = hard_reset_client(server)
+        first.close()
+        server.poll(1.0)
+
+        with connected(server) as second:
+            response = ask(server, second,
+                           build_write_single_coil(Coil.CONVEYOR_RUN, True),
+                           COIL_ECHO)
+            assert response
+            assert server.staged.coils[Coil.CONVEYOR_RUN] is True
