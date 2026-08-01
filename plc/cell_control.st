@@ -29,8 +29,10 @@ VAR
        because a reviewer reads the standard's names, not the numbers. *)
     PMLState        : INT := 9;     (* 9 = Aborted, the power on state *)
 
-    (* Commands from the supervisory layer. Latched by the HMI or OPC UA, and
-       cleared here once acted on, so a held command cannot fire twice. *)
+    (* Commands from the supervisory layer. ONE SHOT: every one of these is
+       cleared at the end of the scan whether it was acted on or not, so a
+       command that arrives in a state which ignores it is DISCARDED rather
+       than latched. See the block at the end of the program for why. *)
     CmdReset        : BOOL;
     CmdStart        : BOOL;
     CmdStop         : BOOL;
@@ -267,5 +269,36 @@ END_IF;
    a request that is only ever raised when it makes sense is one a reviewer can
    read at a glance. *)
 SAFETY_RESET_REQUEST := CmdSafetyReset AND GUARD_CLOSED AND NOT SAFETY_OK;
+
+(* ------------------------------------------------------------------
+   COMMANDS ARE ONE SHOT, and this block is the whole reason.
+
+   Every branch above clears the command it consumed. Nothing cleared a command
+   that arrived in a state which ignores it, so those stayed latched, and the
+   next time the machine entered a state that DOES consume them they fired with
+   nobody asking. Send Start while the cell is Aborted, clear and reset it an
+   hour later, and it begins producing on its own.
+
+   Found on the running cell: CmdReset and CmdStart both sat TRUE in Execute,
+   having been written while the machine was somewhere that ignored them. The
+   cell was one Stop away from resetting itself.
+
+   Discarding is the right answer rather than queueing. A command is an
+   instruction about the machine's state NOW, and an operator who pressed Start
+   against a machine that was not ready expects to press it again once it is,
+   not to have the old press honoured at a moment they are no longer watching.
+   That is also what makes the wait states mean anything: the machine waits for
+   a decision rather than for the arrival of a decision made earlier.
+   ------------------------------------------------------------------ *)
+CmdReset       := FALSE;
+CmdStart       := FALSE;
+CmdStop        := FALSE;
+CmdHold        := FALSE;
+CmdUnhold      := FALSE;
+CmdSuspend     := FALSE;
+CmdUnsuspend   := FALSE;
+CmdAbort       := FALSE;
+CmdClear       := FALSE;
+CmdSafetyReset := FALSE;
 
 END_PROGRAM

@@ -198,3 +198,38 @@ def test_outputs_are_gated_on_the_link_as_well_as_on_torque() -> None:
     assert "NOT LinkFault" in match.group(1), (
         "actuators can run while the link is faulted"
     )
+
+
+def test_every_command_is_cleared_at_the_end_of_the_scan() -> None:
+    """One shot, so a command that arrives in a state which ignores it is
+    discarded rather than latched.
+
+    Found on the running cell: CmdReset and CmdStart both sat TRUE in Execute,
+    written while the machine was in a state that ignored them. Nothing would
+    ever have cleared them, so the next Stop would have walked the cell back to
+    Idle with nobody asking. A machine that resumes unbidden is what the wait
+    states exist to prevent.
+    """
+    body = source()
+    tail = body[body.index("COMMANDS ARE ONE SHOT"):]
+
+    declared = set(re.findall(r"^\s*(Cmd\w+)\s*:\s*BOOL;", body, re.M))
+    assert declared, "no commands found in the declaration"
+
+    for command in declared:
+        assert re.search(rf"^{command}\s*:=\s*FALSE;", tail, re.M), (
+            f"{command} is never cleared, so it latches and fires later"
+        )
+
+
+def test_the_clearing_block_is_the_last_thing_the_program_does() -> None:
+    """Anything reading a command after it is cleared would read FALSE always.
+
+    In particular SAFETY_RESET_REQUEST is built from CmdSafetyReset, and this
+    is the ordering bug that already bit once when the request was derived from
+    CmdReset.
+    """
+    body = source()
+    assert body.index("SAFETY_RESET_REQUEST :=") < body.index("COMMANDS ARE ONE SHOT"), (
+        "commands are cleared before the outputs that read them are computed"
+    )
