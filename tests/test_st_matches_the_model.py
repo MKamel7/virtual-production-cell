@@ -132,3 +132,69 @@ def test_the_io_declarations_are_the_generated_ones() -> None:
     assert on_disk.strip() == generated.strip(), (
         "plc/io_declarations.st has drifted from the address map; regenerate it"
     )
+
+
+# --- the safety chain, parsed rather than assumed -----------------------------
+# These pin properties the ST cannot be executed to demonstrate here. Each one
+# fixes a defect that was actually present: the safety request was derived from
+# a command the state machine consumes first, and there was no link watchdog at
+# all.
+def test_the_safety_reset_request_is_not_derived_from_cmdreset() -> None:
+    """CmdReset is consumed and cleared by the state machine in the same scan.
+
+    The output block runs after that, so a request built from CmdReset could
+    never assert from Stopped, only from states that happen to ignore it. The
+    behaviour of a safety function must not depend on which CASE branch ran.
+    """
+    body = source()
+    match = re.search(r"SAFETY_RESET_REQUEST\s*:=\s*(.+?);", body, re.S)
+    assert match is not None, "the safety reset request is not assigned"
+    expression = match.group(1)
+    assert "CmdSafetyReset" in expression
+    assert "CmdReset" not in expression.replace("CmdSafetyReset", ""), (
+        "the safety reset request is still derived from CmdReset, which the "
+        "state machine clears before this line runs"
+    )
+
+
+def test_a_link_watchdog_exists_and_takes_the_abort_path() -> None:
+    """A cell that cannot tell a dead link from a quiet one is not industrial.
+
+    Zeroing inputs on a channel error only covers failures the MASTER notices.
+    A plant that hangs with its socket open is invisible to that, and
+    SCAN_COUNT is already a heartbeat, so watching it costs nothing.
+    """
+    body = source()
+    assert "LinkFault" in body, "there is no link watchdog"
+    stall = body.index("IF SCAN_COUNT = LastScanCount THEN")
+    assert stall < body.index("PackML state machine"), (
+        "the link watchdog runs after the state machine, so a scan can act on "
+        "input it already knows is stale"
+    )
+    fault = body.index("IF LinkFault THEN")
+    assert re.search(r"CmdAbort\s*:=\s*TRUE;",
+                     body[fault:body.index("END_IF;", fault)]), (
+        "a link fault does not abort; a controller that cannot see the plant "
+        "cannot know it is safe to stop politely"
+    )
+
+
+def test_the_link_starts_faulted() -> None:
+    """Fail safe on power up, and the same reasoning as the Aborted power on
+    state: a link that has never delivered a scan is not a healthy link, it is
+    an unproven one."""
+    body = source()
+    assert re.search(r"LinkFault\s*:\s*BOOL\s*:=\s*TRUE;", body), (
+        "LinkFault does not initialise TRUE, so the cell trusts a link that has "
+        "never produced a heartbeat"
+    )
+
+
+def test_outputs_are_gated_on_the_link_as_well_as_on_torque() -> None:
+    body = source()
+    match = re.search(r"IF PMLState = 6 AND (.+?) THEN", body)
+    assert match is not None
+    assert "SAFETY_OK" in match.group(1)
+    assert "NOT LinkFault" in match.group(1), (
+        "actuators can run while the link is faulted"
+    )

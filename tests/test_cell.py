@@ -282,3 +282,82 @@ def test_the_structured_text_declarations_cover_every_signal() -> None:
     assert f"CONVEYOR_RUN AT %QX0.{int(Coil.CONVEYOR_RUN)}" in text
     assert f"SAFETY_OK AT %IX0.{int(Discrete.SAFETY_OK)}" in text
     assert f"PRODUCED AT %IW{int(InputRegister.PRODUCED)}" in text
+
+
+# --- the safety channel answering the PLC's reset request ---------------------
+# The PLC can ASK for torque back. Until this existed the coil went nowhere: the
+# program computed SAFETY_RESET_REQUEST and the plant read four coils and
+# ignored the fifth, so the documented recovery path could not be exercised at
+# all and the safety story was untestable on a running cell.
+def scan_with(cell: Cell, image: ProcessImage, **coils: bool) -> ProcessImage:
+    for name, value in coils.items():
+        image.coils[Coil[name]] = value
+    return cell.scan(image)
+
+
+def test_a_reset_request_restores_torque_once_the_guard_is_closed() -> None:
+    cell = Cell()
+    image = ProcessImage()
+    cell.open_guard()
+    cell.close_guard()
+    assert not cell.torque_available, "closing the guard restored torque by itself"
+
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+
+    assert cell.torque_available
+
+
+def test_a_reset_request_with_the_guard_still_open_does_nothing() -> None:
+    """The safety channel checks the guard itself rather than trusting the PLC.
+
+    The control program already refuses to ask while the guard is open, so this
+    is the second of two independent checks. A safety function that relies on
+    the thing it is protecting against to behave is not a safety function.
+    """
+    cell = Cell()
+    image = ProcessImage()
+    cell.open_guard()
+
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+
+    assert not cell.torque_available
+
+
+def test_a_held_reset_does_not_restart_the_machine_when_the_guard_closes() -> None:
+    """The property that makes this a manual reset rather than an interlock.
+
+    An operator who wedges the reset button and then closes the door has
+    performed one action, and a restart needs two: closing the guard and a
+    deliberate reset. Level triggering would collapse those into one and hand
+    back torque the instant the door shut, which is the exact behaviour
+    close_guard() refuses to have.
+    """
+    cell = Cell()
+    image = ProcessImage()
+    cell.open_guard()
+
+    # request goes and stays high while the guard is still open
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+    assert not cell.torque_available
+
+    cell.close_guard()
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+
+    assert not cell.torque_available, "a held reset restarted the machine"
+
+
+def test_releasing_and_pressing_again_does_restore_torque() -> None:
+    """The control case. Without it the test above passes on a cell that has
+    simply broken its reset."""
+    cell = Cell()
+    image = ProcessImage()
+    cell.open_guard()
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+    cell.close_guard()
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+    assert not cell.torque_available
+
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=False)
+    image = scan_with(cell, image, SAFETY_RESET_REQUEST=True)
+
+    assert cell.torque_available

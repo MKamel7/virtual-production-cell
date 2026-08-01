@@ -42,6 +42,12 @@ exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:",
 line-length = 100
 src = ["src", "tests", "scripts"]
 target-version = "py310"
+# plc/codesys/build_project.py is not this project's Python. It runs inside the
+# CODESYS IDE under IronPython 2.7, and the host injects `projects`, `DeviceID`
+# and `KindOfTask` into its globals. Linting it against a py310 target reports
+# only false positives: undefined names that are the host's API, and rewrites
+# that IronPython would reject.
+extend-exclude = ["plc/codesys/build_project.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RET"]

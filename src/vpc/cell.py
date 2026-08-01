@@ -92,6 +92,10 @@ class Cell:
     #: Set while the infeed has no product to offer, so the line starves.
     infeed_starved: bool = False
 
+    #: Last state of the PLC's reset request, for edge detection. See
+    #: `_service_reset_request` for why the edge matters rather than the level.
+    reset_was_requested: bool = False
+
     def scan(self, image: ProcessImage) -> ProcessImage:
         """Advance one PLC scan and return the inputs for the next one.
 
@@ -106,7 +110,11 @@ class Cell:
 
     # ---- the plant reacts to what the PLC asked for last scan --------------
     def _act_on_outputs(self, image: ProcessImage) -> None:
-        # Torque first. The safety channel outranks the program, so a conveyor
+        # The safety channel reads the reset REQUEST before anything else, since
+        # whether torque is available decides what the rest of this scan can do.
+        self._service_reset_request(image.coils[Coil.SAFETY_RESET_REQUEST])
+
+        # Torque next. The safety channel outranks the program, so a conveyor
         # command is simply ignored when torque is withheld rather than being
         # allowed to move the line and be corrected afterwards.
         moving = image.coils[Coil.CONVEYOR_RUN] and self.torque_available
@@ -193,6 +201,26 @@ class Cell:
         if not self.at_qc.good:
             return True
         return self.at_qc.serial % QC_FAIL_EVERY == 0
+
+    def _service_reset_request(self, requested: bool) -> None:
+        """The safety channel's answer to the PLC asking for torque back.
+
+        Torque is restored on a RISING edge and never on a level, and that is a
+        safety requirement rather than a style preference. A reset that is held
+        down must not re-enable the machine the instant a guard closes: ISO
+        13849 wants a manual reset to be a separate deliberate action, and one
+        held button covering both the closing of the door and the restart is one
+        action, not two. So an operator who wedges the reset gets nothing until
+        they release it and press again.
+
+        The request is still only ever an ASK. This method is the safety channel
+        deciding, which is why it lives here and not in the control program, and
+        why it checks the guard itself rather than trusting the PLC to have.
+        """
+        rising = requested and not self.reset_was_requested
+        self.reset_was_requested = requested
+        if rising and self.guard_closed:
+            self.torque_available = True
 
     # ---- the safety channel, which the PLC cannot overrule -----------------
     def open_guard(self) -> None:

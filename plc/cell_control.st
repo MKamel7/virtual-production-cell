@@ -41,6 +41,15 @@ VAR
     CmdAbort        : BOOL;
     CmdClear        : BOOL;
 
+    (* Asking the safety channel for torque back. DELIBERATELY NOT CmdReset.
+       CmdReset is consumed by the state machine, which clears it in the same
+       scan it acts on it, and the output block below runs after that. Deriving
+       the safety request from CmdReset therefore meant it could never assert
+       from Stopped, only from states that happen to ignore CmdReset. A safety
+       function whose behaviour depends on which branch of a CASE ran first is
+       one nobody can reason about. *)
+    CmdSafetyReset  : BOOL;
+
     (* Acting states finish when their work does. These stand in for the
        equipment timing the model deliberately does not carry. *)
     ActingTimer     : INT := 0;
@@ -49,6 +58,16 @@ VAR
     (* Edge detection on the guard, so opening it aborts once rather than
        continuously re-triggering while it stays open. *)
     GuardWasClosed  : BOOL := TRUE;
+
+    (* Link watchdog. SCAN_COUNT is the plant's heartbeat: it increments every
+       plant scan, so a value that stops changing means the plant has stopped
+       or the link is dead. Started at a value the plant will not publish on
+       its first scan, so a link that never comes up is a fault rather than a
+       match. *)
+    LastScanCount   : WORD := 16#FFFF;
+    LinkStallScans  : INT := 0;
+    LinkFault       : BOOL := TRUE;
+    LINK_STALL_LIMIT: INT := 10;
 END_VAR
 
 (* PackML state encoding, per the PackTags convention.
@@ -56,6 +75,39 @@ END_VAR
    6 Execute    7 Stopping   8 Aborting   9 Aborted   10 Holding
   11 Held      12 Unholding 13 Suspending 14 Unsuspending
   15 Resetting 16 Completing 17 Complete                              *)
+
+(* ------------------------------------------------------------------
+   LINK WATCHDOG, and it runs before the safety block because a stale input is
+   worse than a bad one.
+
+   The Modbus master is configured to zero its inputs on a channel error, so a
+   dropped link already reads as SAFETY_OK false and stops the cell. That is
+   necessary and not sufficient, because it only covers the failures the master
+   NOTICES. A plant process that hangs while its TCP connection stays open
+   answers nothing, and depending on the error handling setting the master may
+   keep serving the last values it received. The controller would then run a
+   machine whose real state it has not seen for minutes.
+
+   SCAN_COUNT is the answer and it costs nothing: the plant increments it every
+   scan, so it is already a heartbeat. A value that stops changing means the
+   plant has stopped, whatever the socket believes. This is the difference
+   between checking that a link is OPEN and checking that it is ALIVE.
+   ------------------------------------------------------------------ *)
+IF SCAN_COUNT = LastScanCount THEN
+    LinkStallScans := LinkStallScans + 1;
+ELSE
+    LinkStallScans := 0;
+END_IF;
+LastScanCount := SCAN_COUNT;
+
+LinkFault := LinkStallScans >= LINK_STALL_LIMIT;
+
+IF LinkFault THEN
+    (* Not a stop. A controller that cannot see the plant cannot know it is
+       safe to decelerate politely, so this takes the abort path like any other
+       loss of confidence in the machine's state. *)
+    CmdAbort := TRUE;
+END_IF;
 
 (* ------------------------------------------------------------------
    SAFETY FIRST, and unconditionally.
@@ -181,7 +233,7 @@ END_IF;
    standard requires: a machine that keeps doing things while it is Holding is
    a machine whose Held state means nothing.
    ------------------------------------------------------------------ *)
-IF PMLState = 6 AND SAFETY_OK THEN
+IF PMLState = 6 AND SAFETY_OK AND NOT LinkFault THEN
 
     (* The conveyor runs unless a station is still working on what is in front
        of it. This is what makes the line block rather than push product into
@@ -205,8 +257,15 @@ ELSE
     REJECT_EJECT   := FALSE;
 END_IF;
 
-(* The reset request is an ASK, not a grant. The safety channel decides, and it
-   will refuse while the guard is open. *)
-SAFETY_RESET_REQUEST := CmdReset AND GUARD_CLOSED AND NOT SAFETY_OK;
+(* The reset request is an ASK, not a grant. The safety channel decides, it
+   checks the guard itself rather than trusting this, and it acts on the RISING
+   edge so a held request cannot restart the machine when a door closes.
+
+   Driven by CmdSafetyReset rather than CmdReset: see the declaration. The
+   guard and SAFETY_OK terms stay because asking while the guard is open, or
+   while torque is already available, is asking for something meaningless, and
+   a request that is only ever raised when it makes sense is one a reviewer can
+   read at a glance. *)
+SAFETY_RESET_REQUEST := CmdSafetyReset AND GUARD_CLOSED AND NOT SAFETY_OK;
 
 END_PROGRAM
