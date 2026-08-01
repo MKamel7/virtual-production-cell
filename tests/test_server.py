@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import socket
 import struct
+import sys
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -320,17 +321,22 @@ def test_the_write_echo_is_the_value_the_master_sent(value: int) -> None:
 
 
 # --- the peer going away rudely ----------------------------------------------
+#: The `linger` struct is {u_short l_onoff, u_short l_linger} on Windows and
+#: {int l_onoff, int l_linger} on Linux, so the OPTION is portable and the
+#: PACKING is not. Getting this wrong gives EINVAL from setsockopt on the other
+#: platform, which is how these two tests passed on Windows and failed in CI.
+LINGER = struct.pack("hh" if sys.platform == "win32" else "ii", 1, 0)
+
+
 def hard_reset_client(server: CellServer) -> socket.socket:
     """A client whose close sends RST rather than FIN.
 
-    SO_LINGER with a zero timeout is the portable way to make a close abrupt,
-    which is what a rebooting controller or a pulled cable looks like from the
-    other end. A graceful close is already covered; this is the case that
-    killed the plant in the field.
+    SO_LINGER with a zero timeout is how you make a close abrupt, which is what
+    a rebooting controller or a pulled cable looks like from the other end. A
+    graceful close is already covered; this is the case that killed the plant.
     """
     client = socket.create_connection(("127.0.0.1", server.port), timeout=5)
-    client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
-                      struct.pack("hh", 1, 0))
+    client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, LINGER)
     server.poll(1.0)
     return client
 
