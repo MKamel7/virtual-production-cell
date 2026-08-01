@@ -14,3 +14,8 @@ coverage.xml
 *.opt
 *.precompilecache
 plc/codesys/build.log
+# Download artifacts, regenerated on every build, and CODESYS backup files.
+*.bootinfo
+*.bootinfo_guids
+*.compileinfo
+*.~u
