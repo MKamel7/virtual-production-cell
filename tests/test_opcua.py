@@ -319,3 +319,34 @@ def test_the_name_check_actually_fails_when_the_two_disagree(
 
     with pytest.raises(ValueError, match="disagrees with PackTags"):
         opcua.check_names_agree()
+
+
+def test_no_password_is_written_down_in_this_repository() -> None:
+    """The credential must not exist in source, and this is what enforces it.
+
+    A default password is a credential every clone and every future reader has,
+    and "it is only a demo" is exactly how one ends up somewhere it is not. This
+    test is the difference between having removed it once and it staying gone.
+    """
+    from vpc.opcua import Credentials
+
+    account = Credentials()
+    root = Path(__file__).resolve().parents[1]
+    searched = 0
+    for path in list(root.glob("src/**/*.py")) + list(root.glob("scripts/*.py")) \
+            + list(root.glob("*.md")) + list(root.glob("docs/*.md")):
+        searched += 1
+        assert account.password not in path.read_text(encoding="utf-8"), (
+            f"the password appears in {path.relative_to(root)}"
+        )
+    assert searched > 5, "the search found almost no files, so it proves nothing"
+
+
+def test_a_generated_password_is_not_guessable() -> None:
+    """Generated rather than defaulted, so the insecure option does not exist."""
+    from vpc.opcua import Credentials
+
+    password = Credentials().password
+
+    assert len(password) >= 16, "a short generated password is barely better than none"
+    assert password not in ("supervisor", "password", "vpc", "")

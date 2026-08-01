@@ -27,6 +27,7 @@ from __future__ import annotations
 import datetime as dt
 import ipaddress
 import os
+import secrets
 import socket
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +56,26 @@ APPLICATION_URI = "urn:mkamel7:virtual-production-cell"
 DEFAULT_ENDPOINT = "opc.tcp://0.0.0.0:4841/vpc/"
 
 
+#: The password for this run. Taken from the environment, or generated fresh if
+#: there is none.
+#:
+#: There is NO default password in this repository and there is no file to put
+#: one in. A credential committed to source control is a credential every clone
+#: and every future reader has, and "it is only a demo" is exactly how one ends
+#: up somewhere it is not. Generating instead of defaulting means the insecure
+#: option does not exist rather than being discouraged.
+#:
+#: Evaluated once per process so a server and a client in the SAME process agree
+#: without either being told. Across processes there is nothing to agree on, so
+#: `scripts/serve_opcua.py` prints the generated password at startup and
+#: VPC_OPCUA_PASSWORD is how you set a known one.
+_PASSWORD: str = os.environ.get("VPC_OPCUA_PASSWORD") or secrets.token_urlsafe(18)
+
+#: True when the password above was generated rather than supplied, so the
+#: server can say so instead of leaving somebody guessing.
+PASSWORD_WAS_GENERATED: bool = "VPC_OPCUA_PASSWORD" not in os.environ
+
+
 @dataclass(frozen=True)
 class Credentials:
     """The one account this server accepts.
@@ -63,23 +84,13 @@ class Credentials:
     read and command is not a supervisory interface, it is an actuator with a
     nice browse tree.
 
-    The defaults are a PUBLISHED DEMO CREDENTIAL and are treated as such. A
-    password committed to a public repository is a password everybody has, which
-    is fine for a loopback demonstration and is not a secret. Override both from
-    the environment anywhere a second machine can reach the endpoint:
-
-        VPC_OPCUA_USER, VPC_OPCUA_PASSWORD
-
-    Reading them from the environment rather than a config file is deliberate:
-    a config file is a thing that gets committed by accident, and this project
-    would rather have no place to put a secret than a tempting one.
+    Set `VPC_OPCUA_USER` and `VPC_OPCUA_PASSWORD` to choose them. Neither has a
+    value written down anywhere in this repository.
     """
 
     username: str = field(
         default_factory=lambda: os.environ.get("VPC_OPCUA_USER", "supervisor"))
-    password: str = field(
-        default_factory=lambda: os.environ.get("VPC_OPCUA_PASSWORD",
-                                               "REDACTED-CREDENTIAL-PURGED"))
+    password: str = field(default_factory=lambda: _PASSWORD)
 
 
 def ensure_certificate(cert: Path | None = None, key: Path | None = None,

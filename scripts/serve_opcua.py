@@ -22,10 +22,13 @@ Connect with UaExpert or any client using:
     endpoint  opc.tcp://<host>:4840/vpc/
     security  Basic256Sha256, Sign & Encrypt
     user      supervisor        (or $VPC_OPCUA_USER)
-    password  REDACTED-CREDENTIAL-PURGED    (or $VPC_OPCUA_PASSWORD)
+    password  printed at startup (or $VPC_OPCUA_PASSWORD)
 
-These defaults are a published demo credential, not a secret. Override both
-from the environment anywhere a second machine can reach the endpoint.
+There is no password in this repository and no file to put one in. If
+VPC_OPCUA_PASSWORD is unset, one is generated for the run and printed below the
+endpoint. A credential committed to source control is a credential every clone
+has, and generating instead of defaulting means the insecure option does not
+exist rather than merely being discouraged.
 
 Anonymous is refused and there is no None policy offered, so a client that
 cannot do certificates cannot connect. That is the point. Trust the server
@@ -45,6 +48,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from vpc.cell import Cell  # noqa: E402
 from vpc.opcua import (  # noqa: E402
     DEFAULT_ENDPOINT,
+    PASSWORD_WAS_GENERATED,
+    Credentials,
     build_address_space,
     check_names_agree,
     make_server,
@@ -85,8 +90,14 @@ async def main() -> int:
     server = await make_server(DEFAULT_ENDPOINT)
     nodes = await build_address_space(server, tags)
 
-    print(f"tags    {DEFAULT_ENDPOINT} (Basic256Sha256 sign+encrypt, "
-          f"user 'supervisor')")
+    account = Credentials()
+    print(f"tags    {DEFAULT_ENDPOINT} (Basic256Sha256 sign+encrypt)")
+    print(f"user    {account.username}")
+    if PASSWORD_WAS_GENERATED:
+        print(f"pass    {account.password}   (generated for this run; "
+              f"set VPC_OPCUA_PASSWORD to fix it)")
+    else:
+        print("pass    from VPC_OPCUA_PASSWORD")
 
     # The plant scans on its OWN thread. This is not tidiness, it is the same
     # principle stated twice and violated once: OPC UA sits ABOVE the control
