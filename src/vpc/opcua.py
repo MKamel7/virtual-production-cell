@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import datetime as dt
 import ipaddress
+import os
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -61,10 +62,24 @@ class Credentials:
     Anonymous is refused. A supervisory interface that anyone on the network can
     read and command is not a supervisory interface, it is an actuator with a
     nice browse tree.
+
+    The defaults are a PUBLISHED DEMO CREDENTIAL and are treated as such. A
+    password committed to a public repository is a password everybody has, which
+    is fine for a loopback demonstration and is not a secret. Override both from
+    the environment anywhere a second machine can reach the endpoint:
+
+        VPC_OPCUA_USER, VPC_OPCUA_PASSWORD
+
+    Reading them from the environment rather than a config file is deliberate:
+    a config file is a thing that gets committed by accident, and this project
+    would rather have no place to put a secret than a tempting one.
     """
 
-    username: str = "supervisor"
-    password: str = "REDACTED-CREDENTIAL-PURGED"
+    username: str = field(
+        default_factory=lambda: os.environ.get("VPC_OPCUA_USER", "supervisor"))
+    password: str = field(
+        default_factory=lambda: os.environ.get("VPC_OPCUA_PASSWORD",
+                                               "REDACTED-CREDENTIAL-PURGED"))
 
 
 def ensure_certificate(cert: Path | None = None, key: Path | None = None,

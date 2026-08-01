@@ -21,8 +21,11 @@ Connect with UaExpert or any client using:
 
     endpoint  opc.tcp://<host>:4840/vpc/
     security  Basic256Sha256, Sign & Encrypt
-    user      supervisor
-    password  REDACTED-CREDENTIAL-PURGED
+    user      supervisor        (or $VPC_OPCUA_USER)
+    password  REDACTED-CREDENTIAL-PURGED    (or $VPC_OPCUA_PASSWORD)
+
+These defaults are a published demo credential, not a secret. Override both
+from the environment anywhere a second machine can reach the endpoint.
 
 Anonymous is refused and there is no None policy offered, so a client that
 cannot do certificates cannot connect. That is the point. Trust the server
