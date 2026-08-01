@@ -46,6 +46,11 @@ jobs:
       - name: Rebuild the traceability matrix
         run: uv run --group dev python scripts/check_traceability.py
 
+      # Same reasoning: a performance figure that is only as current as the last
+      # time somebody remembered to rerun it is a memory, not a measurement.
+      - name: Replay the scenarios and rebuild the OEE report
+        run: uv run --group dev python scripts/run_scenarios.py
+
       # The generated matrix is committed too, so a reader of the repository can
       # see it without running anything. This catches the case where the
       # requirements or the markers change and the checked in report goes stale:

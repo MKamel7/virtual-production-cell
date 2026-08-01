@@ -279,3 +279,42 @@ def test_a_guard_opening_aborts_once_on_the_edge() -> None:
     assert re.search(r"GuardWasClosed\s*:=\s*GUARD_CLOSED;", body[edge:]), (
         "GuardWasClosed is never updated, so the edge can never be seen again"
     )
+
+
+def test_the_st_output_expressions_match_the_reference_controller() -> None:
+    """The ST and `vpc.scenario.ReferenceController` must agree, exactly.
+
+    Scenarios have to run in CI and CI has no PLC, so something has to drive the
+    plant. That something is a second place the control policy is written down,
+    and this project refuses two implementations of one thing everywhere else.
+
+    So the reference controller is the executable specification and the ST
+    implements it, in the same relationship the PackML model already has with
+    the state machine. This test is what makes that a claim rather than a hope:
+    change a rule in one place and the build fails until the other agrees.
+    """
+    from vpc.scenario import OUTPUT_POLICY
+
+    body = source()
+    start = body.index("IF PMLState = 6 AND")
+    block = body[start:body.index("ELSE", start)]
+
+    for output, expression in OUTPUT_POLICY.items():
+        match = re.search(rf"{output}\s*:=\s*(.+?);", block, re.S)
+        assert match is not None, f"{output} is not assigned in the Execute block"
+        found = " ".join(match.group(1).split())
+        assert found == expression, (
+            f"{output} disagrees with the reference controller.\n"
+            f"  ST:        {found}\n"
+            f"  reference: {expression}"
+        )
+
+
+def test_the_reference_controller_covers_every_actuator() -> None:
+    """A policy that forgot an output would leave it dark in the scenarios and
+    lively on the PLC."""
+    from vpc.process_image import Coil
+    from vpc.scenario import OUTPUT_POLICY
+
+    actuators = {c.name for c in Coil} - {"SAFETY_RESET_REQUEST"}
+    assert set(OUTPUT_POLICY) == actuators

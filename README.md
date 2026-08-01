@@ -160,6 +160,38 @@ they are worth naming because each is a class rather than a typo:
   cleared, so it fired the next time the machine entered a state that wanted it.
   The cell was one Stop away from resetting itself.
 
+## Scenario runs, and why three numbers beat one
+
+`report/oee.md`, regenerated and diffed in CI. Each run isolates a single loss,
+so the difference against the baseline is attributable to one cause.
+
+| Scenario | Availability | Performance | Quality | OEE |
+|---|---|---|---|---|
+| baseline | 98.5% | 73.6% | 86.2% | **62.5%** |
+| guard interruption | **86.8%** | 73.7% | 85.9% | **55.0%** |
+| starved infeed | 98.5% | **54.8%** | 86.1% | **46.5%** |
+
+**The shape of the loss is the finding, not the size of it.** A guard opening
+costs *availability*: the cell is fine, it is not allowed to run, and the restart
+is a deliberate act nobody can skip. A starved infeed costs *performance*: the
+cell is running perfectly and producing nothing, and a single availability figure
+would have called that a good hour. The remedies are completely different, one is
+a procedure and the other is a supplier, and a plant manager looking at one
+number cannot tell them apart.
+
+Two definitions are stated in the report because OEE is easy to flatter.
+Performance uses **total** count, not good count, so a fast line making scrap
+cannot hide inside it. Quality puts the ejected bottles in the denominator: they
+occupied the stations and consumed the cycle, and leaving them out would credit
+the cell with capacity it spent producing waste. The ideal cycle time is
+**derived** from the slowest station rather than chosen, which is the other place
+an OEE figure usually goes soft.
+
+Scenarios run against `ReferenceController`, which is not a second controller.
+It is the executable specification of the policy `plc/cell_control.st`
+implements, and `tests/test_st_matches_the_model.py` parses the ST and compares
+its four output expressions against it, so the two cannot drift.
+
 ## Running it
 
 ```sh
