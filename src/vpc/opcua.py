@@ -45,7 +45,13 @@ NAMESPACE = "http://mkamel7.github.io/virtual-production-cell"
 #: give points at trust rather than at the mismatch, which sends people looking
 #: in entirely the wrong place, so this is defined once and used in both.
 APPLICATION_URI = "urn:mkamel7:virtual-production-cell"
-DEFAULT_ENDPOINT = "opc.tcp://0.0.0.0:4840/vpc/"
+#: 4841 and not the standard 4840, deliberately. A CODESYS Control Win runtime
+#: exposes its OWN OPC UA server on 4840, and on this project that runtime is by
+#: definition on the same machine. Binding 0.0.0.0:4840 alongside its
+#: 127.0.0.1:4840 succeeds on Windows and then loopback clients silently reach
+#: the runtime instead, which presents as BadSecurityPolicyRejected from a
+#: server whose security is configured correctly. Found exactly that way.
+DEFAULT_ENDPOINT = "opc.tcp://0.0.0.0:4841/vpc/"
 
 
 @dataclass(frozen=True)
