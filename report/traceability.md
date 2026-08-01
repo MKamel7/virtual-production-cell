@@ -44,11 +44,13 @@ verifying nothing that was asked for.
 | SR-09 | Actuators shall be energised only in Execute | SG-04 | HAZ-01, HAZ-03 | `test_every_state_except_execute_leaves_the_cell_still` |
 | SR-10 | A guard opening shall abort the cell exactly once, on the edge | SG-01 | HAZ-01, HAZ-03 | `test_a_guard_opening_aborts_once_on_the_edge` |
 | SR-11 | A product failing inspection shall be ejected within the scan it is present at the QC station | SG-05 | HAZ-05 | `test_a_failing_product_must_be_ejected_in_the_scan_it_is_at_qc` |
+| SR-13 | The safety signals shall be carried over a protocol that can detect corruption, repetition, loss and delay | SG-03 | HAZ-04 | `test_a_healthy_channel_reports_the_plant_truthfully`<br>`test_the_channel_reports_a_guard_opening` |
+| SR-14 | Anything the protection layer refuses shall read as unsafe, with both signals de-energised | SG-03 | HAZ-04 | `test_a_corrupted_message_reads_as_unsafe`<br>`test_a_repeated_message_reads_as_unsafe`<br>`test_a_lost_message_reads_as_unsafe`<br>`test_a_frame_that_passes_the_checksum_and_makes_no_sense_reads_as_unsafe`<br>`test_an_unsafe_state_never_carries_the_last_known_good_values` |
 | SR-12 | The plant shall not act on an output written and withdrawn within a single scan | SG-03 | HAZ-04 | `test_inputs_are_a_snapshot_and_not_a_live_view`<br>`test_a_coil_written_and_withdrawn_inside_one_scan_never_reaches_the_plant` |
 
 ## Coverage
 
 - Hazards: **5**
 - Safety goals: **5**
-- Requirements: **12**
-- Tests claiming a requirement: **21**
+- Requirements: **14**
+- Tests claiming a requirement: **28**

@@ -16,6 +16,13 @@ dependencies = [
     # model, a type system, an address space and X.509 security. Implementing it
     # would not be principled, it would be a year.
     "asyncua>=1.0",
+    # The safety channel's framing is IMPORTED from the fault injection
+    # harness, pinned to a tag rather than tracking main, which is the same
+    # discipline that project applies to its own device under test and for the
+    # same reason: a safety artifact whose contents shift under a consumer is
+    # worse than none. It completes the chain P1 -> P2 -> P4, where each link
+    # is a pinned dependency and not a copy.
+    "fault-injection-harness @ git+https://github.com/MKamel7/fault-injection-harness@v0.3.0",
 ]
 
 [build-system]

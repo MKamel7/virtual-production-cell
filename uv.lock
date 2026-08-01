@@ -370,6 +370,11 @@ wheels = [
 ]
 
 [[package]]
+name = "embedded-test-automation"
+version = "3.1.0"
+source = { git = "https://github.com/MKamel7/embedded-test-automation?rev=v3.1#092e0615584a76649c89f165de48ff5562fc7484" }
+
+[[package]]
 name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -379,6 +384,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0e/97c33bf5009bdbac74fd2beace167cab3f978feb69cc36f1ef79360d6c4e/exceptiongroup-1.3.1-py3-none-any.whl", hash = "sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598", size = 16740, upload-time = "2025-11-21T23:01:53.443Z" },
+]
+
+[[package]]
+name = "fault-injection-harness"
+version = "0.3.0"
+source = { git = "https://github.com/MKamel7/fault-injection-harness?rev=v0.3.0#dddd7b6c41240e8c54dc8adddc4af81a85a26372" }
+dependencies = [
+    { name = "embedded-test-automation" },
+    { name = "pyyaml" },
 ]
 
 [[package]]
@@ -1056,6 +1070,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncua" },
+    { name = "fault-injection-harness" },
 ]
 
 [package.dev-dependencies]
@@ -1072,7 +1087,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "asyncua", specifier = ">=1.0" }]
+requires-dist = [
+    { name = "asyncua", specifier = ">=1.0" },
+    { name = "fault-injection-harness", git = "https://github.com/MKamel7/fault-injection-harness?rev=v0.3.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [

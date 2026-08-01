@@ -191,6 +191,31 @@ requirements:
       misses the window, ships the product, moves no counter and reports no
       error.
 
+  - id: SR-13
+    goal: SG-03
+    text: >-
+      The safety signals shall be carried over a protocol that can detect
+      corruption, repetition, loss and delay
+    rationale: >-
+      A plain fieldbus bit cannot express staleness. A stuck sender repeating a
+      healthy frame is valid in every byte, and only a sequence number shows
+      that nothing new has been said. The framing is imported from the fault
+      injection harness at a pinned tag rather than reimplemented, so the
+      evidence gathered against it still refers to what is running.
+
+  - id: SR-14
+    goal: SG-03
+    text: >-
+      Anything the protection layer refuses shall read as unsafe, with both
+      signals de-energised
+    rationale: >-
+      Not an error to log, not a value to retry, and above all not the last
+      known good state, which is the defect the Modbus channel had with keep
+      last value. A channel that cannot prove what it is saying is a channel
+      saying no. Every failure mode collapses to one reaction deliberately: a
+      controller reacting differently to a bad checksum than to a stale counter
+      would be making a safety decision out of a diagnosis.
+
   - id: SR-12
     goal: SG-03
     text: >-
