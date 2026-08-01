@@ -7,3 +7,10 @@ coverage.xml
 .mypy_cache/
 .ruff_cache/
 .venv/
+
+# CODESYS per-user and per-machine leftovers. cell.project itself IS committed:
+# it carries the Modbus channel configuration, which build_project.py cannot
+# reproduce, so the binary is the only place that configuration exists.
+*.opt
+*.precompilecache
+plc/codesys/build.log
