@@ -19,3 +19,4 @@ plc/codesys/build.log
 *.bootinfo_guids
 *.compileinfo
 *.~u
+plc/codesys/sync.log

@@ -47,7 +47,7 @@ target-version = "py310"
 # and `KindOfTask` into its globals. Linting it against a py310 target reports
 # only false positives: undefined names that are the host's API, and rewrites
 # that IronPython would reject.
-extend-exclude = ["plc/codesys/build_project.py"]
+extend-exclude = ["plc/codesys/build_project.py", "plc/codesys/sync_program.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RET"]
