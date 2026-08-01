@@ -89,6 +89,38 @@ client = proj.find("Modbus_TCP_Client", True)[0]
 
 attempt("Modbus TCP Server, the plant",
         lambda: client.add("Plant", DeviceID(89, "0000 0005", "4.6.0.0")))
+plant = proj.find("Plant", True)[0]
+
+
+def set_parameter(device, parameter_id, value, label):
+    """Set one device parameter, found by id rather than by name.
+
+    Ids are stable across CODESYS language settings; visible names are not, and a
+    script that matched on 'IPAddress' would silently configure nothing on a
+    German installation. Missing ids raise rather than pass quietly, because a
+    slave left on its default 192.168.0.1 produces a cell that builds cleanly and
+    never exchanges a byte.
+    """
+    for connector in device.connectors:
+        try:
+            parameters = connector.host_parameters
+        except Exception:
+            continue
+        for parameter in parameters:
+            if str(parameter.id) == parameter_id:
+                parameter.value = value
+                say("OK    %s -> %s" % (label, value))
+                return True
+    say("FAIL  %s: no parameter with id %s" % (label, parameter_id))
+    return False
+
+
+# The plant runs on this machine, so the slave is loopback. Port 502 is already
+# the default and is set explicitly anyway: a default that happens to be right is
+# not the same as a decision, and it would move silently if the default changed.
+set_parameter(plant, "9102", "[127, 0, 0, 1]", "slave IP address")
+set_parameter(plant, "9103", "502", "slave port")
+set_parameter(plant, "9100", "1", "slave unit id")
 
 # ---- application objects ---------------------------------------------------
 app = proj.find("Application", True)[0]

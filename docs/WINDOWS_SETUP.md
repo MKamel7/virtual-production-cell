@@ -185,6 +185,31 @@ If the master cannot connect at all, the usual cause on Windows is the firewall
 prompt having been dismissed. Loopback is normally exempt, a second machine is
 not.
 
+### The project is generated, so most of this is already done
+
+`plc/codesys/cell.project` is built by `plc/codesys/build_project.py`, a CODESYS
+ScriptEngine script, from the files that already own the information. Open it and
+the device tree, the global variable list, the control program and the task are
+all there, and the slave is already addressed at `127.0.0.1:502`, unit id 1.
+
+```
+"E:\CODESYS\CODESYS\Common\CODESYS.exe" ^
+    --profile="CODESYS V3.5 SP22 Patch 3" --noUI ^
+    --runscript="plc\codesys\build_project.py"
+```
+
+It **refuses to overwrite an existing project**, because the two things below are
+not scriptable and recreating the project would throw them away.
+
+**What is left to do by hand, and why.** The Modbus channel list is not reachable
+from the scripting API: `device_parameters` is empty, `host_parameters` carries
+the address and timeout but no channels, and there is no channel module in the
+device repository. So two jobs stay in the IDE:
+
+1. **The Ethernet adapter's network interface.** Machine specific, and a dropdown
+   of real adapters is a better way to pick one than a string in a script.
+2. **The three channels below**, and mapping their elements to the `IO` variables.
+
 ### The channel configuration, and the one conflict to decide first
 
 A CODESYS Modbus TCP master does not simply expose a slave's address space. You
