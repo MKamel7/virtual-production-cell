@@ -20,3 +20,4 @@ plc/codesys/build.log
 *.compileinfo
 *.~u
 plc/codesys/sync.log
+certs/

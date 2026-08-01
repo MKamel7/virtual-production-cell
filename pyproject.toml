@@ -8,7 +8,15 @@ requires-python = ">=3.10"
 # will import the protection layer from the fault injection harness, pinned to a
 # tag and never to main: same discipline that project applies to its own device
 # under test, and for the same reason.
-dependencies = []
+dependencies = [
+    # OPC UA is imported and Modbus was not, and the two decisions are
+    # consistent: Modbus TCP is a header, a function code and a payload, and
+    # writing it bought exhaustive testability of the layer that reads bytes off
+    # a socket. OPC UA is a binary protocol with a session layer, a subscription
+    # model, a type system, an address space and X.509 security. Implementing it
+    # would not be principled, it would be a year.
+    "asyncua>=1.0",
+]
 
 [build-system]
 requires = ["hatchling"]
