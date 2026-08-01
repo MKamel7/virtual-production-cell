@@ -118,6 +118,48 @@ Verified against **pymodbus** as well as its own tests, since a server checked
 only by the client that shares its assumptions proves self-consistency rather
 than a wire format.
 
+## What it does when the link dies, which is the result worth having
+
+Demonstrated on the running cell, not argued from the model. With the controller
+producing, the plant process was killed:
+
+```
+PMLState      6 Execute  ->  9 Aborted
+every coil    FALSE
+Plant device  fault
+```
+
+Then the plant was restarted, and **nothing was touched in the IDE**:
+
+```
+master reconnected    127.0.0.1 -> 502  Established
+SCAN_COUNT   488 -> 548                 the plant is alive again
+PRODUCED     0 -> 0                     the machine is not
+```
+
+> The cell recovers the **connection** automatically and refuses to recover the
+> **machine** automatically.
+
+Both halves are deliberate. A dropped TCP connection is an infrastructure event,
+and a controller that needs a human to reconnect a socket is useless, so the
+Modbus client reconnects on its own. But something happened that the controller
+could not see, and the only correct response to that is to stop and wait for a
+person who can. So the cell sits in Aborted needing a deliberate Clear, Reset and
+Start, exactly as it would after a guard opening.
+
+Three defects were found by running the cell that 144 tests did not catch, and
+they are worth naming because each is a class rather than a typo:
+
+- **The plant died when the master reset the connection.** The graceful
+  disconnect was handled and the abrupt one was not, which is backwards: a rig's
+  normal condition is a controller being downloaded to repeatedly, and every one
+  of those ends in a logout.
+- **The master never reconnected.** `AutoReconnect` defaults off, so losing the
+  plant once meant a full download to get it back.
+- **Commands latched.** A command written into a state that ignores it was never
+  cleared, so it fired the next time the machine entered a state that wanted it.
+  The cell was one Stop away from resetting itself.
+
 ## Running it
 
 ```sh
