@@ -20,4 +20,10 @@ plc/codesys/build.log
 *.compileinfo
 *.~u
 plc/codesys/sync.log
+plc/codesys/demo.log
 certs/
+
+# Screen recordings. The demo mp4 is a release asset, not a git object: it is
+# megabytes of binary that changes wholesale every time it is re-recorded.
+# scripts/record_demo.py reproduces it.
+recordings/
