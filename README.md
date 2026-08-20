@@ -4,7 +4,16 @@ A packaging cell simulated in enough detail to run **real IEC 61131-3 control
 against it**, which is what virtual commissioning means: the PLC program is the
 thing under test, and the plant is a model it drives.
 
-Work in progress. This README describes what exists, not what is planned.
+**It has been run.** The Structured Text is compiled and executed on a CODESYS
+SoftPLC, driving the plant live over Modbus TCP, and the safety behaviour was
+forced by hand rather than argued for. Screenshots of the running cell are
+below. This README describes what exists, not what is planned.
+
+| | |
+|---|---|
+| **223** | tests, 100% statement **and** branch coverage, gated in CI |
+| **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
+| **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
 ## Architecture
 
@@ -26,13 +35,37 @@ plant model elsewhere.
 **Picking this up after a break, or on Windows? Start with
 [`docs/RESUME_HERE.md`](docs/RESUME_HERE.md).**
 
-## Moving the PLC side to Windows
+## Running on a CODESYS runtime, which is the part that had to be proven
 
-The controller needs a vendor runtime and those are Windows only, so the project
-splits: plant, state model and tests are developed and verified on Linux, the
-controller runs on Windows. That is how a virtual commissioning rig is normally
-arranged anyway. See `docs/WINDOWS_SETUP.md`, which is explicit about what is
-ready to move and what is not.
+The controller needs a vendor runtime and those are Windows only to author, so
+the project splits: plant, state model and tests are developed and verified on
+Linux, the controller runs on Windows. That is how a virtual commissioning rig
+is normally arranged anyway. `docs/WINDOWS_SETUP.md` is the sequence that was
+followed, and `plc/codesys/cell.project` is **generated** by
+`plc/codesys/build_project.py` driving the CODESYS scripting engine, so the
+project file is reproducible rather than a hand-built artefact nobody can rebuild.
+
+![The control program running on a CODESYS SoftPLC, PackML state 6 Execute, plant driven live over Modbus TCP](docs/media/codesys-execute.png)
+
+*PackML state 6, Execute. The program is on the SoftPLC and the plant is being
+driven over Modbus TCP.*
+
+![The same cell moments after the plant process was killed: heartbeat stopped, link watchdog fired, PackML state 9 Aborted, every actuator dropped](docs/media/codesys-watchdog.png)
+
+*The same cell moments after the plant process was killed. The heartbeat stopped
+advancing, the link watchdog fired, PackML went to state 9 Aborted and every
+actuator dropped. **SR-06 and SR-07 forced by hand, not argued for.***
+
+![The Modbus client configuration: discrete inputs, input registers and multiple coils, each cyclic at 20 ms](docs/media/codesys-channels.png)
+
+*The Modbus client channels, each cyclic at 20 ms against the plant's 50 ms
+scan, so the controller never reads a half-updated image.*
+
+![The process image mapped bit by bit onto the PLC variables](docs/media/codesys-mapping.png)
+
+*The process image mapped bit by bit onto the PLC's variables. The address map
+is generated from one enum in `src/vpc/process_image.py`, so the two halves
+cannot disagree.*
 
 ## What exists
 
@@ -40,13 +73,17 @@ ready to move and what is not.
 seventeen states, the acting and wait distinction, and the state complete
 transition that belongs to the machine rather than to any operator.
 
-It is in Python **first, deliberately.** PackML belongs in the PLC and will be
-written in Structured Text, but that ST cannot be executed on the machine this
-was developed on, and a seventeen state machine with a partial transition
-function is exactly the kind of thing that looks correct and is not. So the
-model is built and verified here, exhaustively, and the ST is then written to
-match it. This module is the executable specification; the ST is an
-implementation of it.
+It is in Python **first, deliberately.** PackML belongs in the PLC and is
+written in Structured Text, but that ST could not be executed on the Linux
+machine the model was developed on, and a seventeen state machine with a partial
+transition function is exactly the kind of thing that looks correct and is not.
+So the model was built and verified here, exhaustively, and the ST was written
+to match it. This module is the executable specification; the ST is an
+implementation of it, and `tests/test_st_matches_the_model.py` parses the ST and
+checks that it still is. That test earned itself on its first run: the program
+declared its power on state as `4` with a comment saying Aborted, and 4 is Idle.
+**A controller powering up Idle is one command away from running a machine
+nobody has reset.**
 
 The tests enumerate rather than sample:
 
@@ -198,11 +235,32 @@ its four output expressions against it, so the two cannot drift.
 uv run --group dev pytest -q
 ```
 
+Expect **223 passed**. 100% statement and branch coverage is gated, along with
+`ruff` and `mypy --strict`.
+
 To run the plant for a controller to connect to, default port 502:
 
 ```sh
 uv run python -m vpc.server
 ```
 
-100% statement and branch coverage is gated, along with `ruff` and
-`mypy --strict`.
+Then bring the control program up against it. `docs/WINDOWS_SETUP.md` has the
+full sequence, including a table of state transitions that can be forced from
+the IDE watch window to verify the program **before wiring any IO**. That check
+needs no plant and no network, and it is the cheapest confidence available.
+
+To regenerate the CODESYS project rather than opening the committed one:
+
+```sh
+python plc/codesys/build_project.py
+```
+
+Scenario runs and the traceability matrix regenerate into `report/`:
+
+```sh
+uv run python scripts/run_scenarios.py
+uv run python scripts/check_traceability.py
+```
+
+Both are generated files. Editing `report/oee.md` or `report/traceability.md` by
+hand defeats the point of having them.
