@@ -1,0 +1,5 @@
+# GitHub Linguist has no IEC 61131-3 Structured Text language and matches *.st
+# to Smalltalk, so the language bar was advertising this repository's PLC
+# program as a language it is not. Linguist is told to leave these alone; the
+# README and the repository description say what they actually are.
+*.st linguist-detectable=false
