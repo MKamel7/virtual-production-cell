@@ -68,7 +68,14 @@ target-version = "py310"
 # and `KindOfTask` into its globals. Linting it against a py310 target reports
 # only false positives: undefined names that are the host's API, and rewrites
 # that IronPython would reject.
-extend-exclude = ["plc/codesys/build_project.py", "plc/codesys/sync_program.py"]
+# demo_online.py belongs to the same set and was missed when it was added: it
+# is IronPython 2.7 as well (`except Exception, error:` at line 112 is Python 2
+# syntax), so ruff reports it as one invalid-syntax plus five undefined names
+# for the host-injected API. That is what turned `main` red, and it went
+# unnoticed because the failure looks like a lint regression rather than a
+# missing exclusion.
+extend-exclude = ["plc/codesys/build_project.py", "plc/codesys/sync_program.py",
+                  "plc/codesys/demo_online.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RET"]
