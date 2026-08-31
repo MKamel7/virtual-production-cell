@@ -212,6 +212,23 @@ class CellServer:
 
 
 if __name__ == "__main__":  # pragma: no cover
+    # BINDS ON EVERY INTERFACE, DELIBERATELY, AND ONLY HERE.
+    #
+    # The demo exists to be driven by a CODESYS runtime on another machine or
+    # in another VM, which a loopback bind makes impossible. So this entry
+    # point overrides the safe default CellServer itself keeps.
+    #
+    # What that means for whoever runs it: Modbus/TCP has no authentication and
+    # no encryption, by design and by age, so anything that can reach port 502
+    # can drive the coils, which in this cell means the conveyor, the filler,
+    # the capper and the reject gate. Run it behind a firewall or on a host-only
+    # network. This is a simulated plant, so the cost of getting it wrong here
+    # is a wrong OEE number rather than a moving machine, but the same shape
+    # against a real PLC is the classic OT exposure and should not be learned
+    # here as though it were fine.
+    #
+    # The safety channel is NOT reachable this way: it is not on the Modbus
+    # map. The OPC UA server, which is reachable, requires credentials.
     with CellServer(Cell(), host="0.0.0.0", port=502) as server:  # noqa: S104
         print(f"plant listening on {server.port}, {server.period_s}s per scan")
         while True:

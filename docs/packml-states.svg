@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="716" viewBox="0 0 900 716" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#11141a"/>
+<text x="24" y="32" fill="#e8eaee" font-size="17" font-weight="600">PackML, as implemented</text>
+<text x="24" y="52" fill="#9aa3af" font-size="12">Generated from vpc.packml. Solid arrows are commands somebody sends; dashed arrows are the machine reporting its own work complete.</text>
+<text x="60" y="106" fill="#6f7784" font-size="11" letter-spacing="0.08em">WAIT STATES</text>
+<text x="520" y="106" fill="#6f7784" font-size="11" letter-spacing="0.08em">ACTING STATES</text>
+<path d="M520 228 C415.0 228 415.0 136 310 136" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Resetting state complete</title></path>
+<path d="M520 136 C645.0 136 645.0 596 770 596" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Starting state complete</title></path>
+<path d="M520 596 C645.0 596 645.0 182 770 182" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Execute state complete</title></path>
+<path d="M520 182 C415.0 182 415.0 182 310 182" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Completing state complete</title></path>
+<path d="M520 274 C415.0 274 415.0 228 310 228" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Holding state complete</title></path>
+<path d="M520 320 C645.0 320 645.0 596 770 596" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Unholding state complete</title></path>
+<path d="M520 366 C415.0 366 415.0 274 310 274" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Suspending state complete</title></path>
+<path d="M520 412 C645.0 412 645.0 596 770 596" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Unsuspending state complete</title></path>
+<path d="M520 550 C415.0 550 415.0 320 310 320" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Stopping state complete</title></path>
+<path d="M520 458 C415.0 458 415.0 366 310 366" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Aborting state complete</title></path>
+<path d="M520 504 C415.0 504 415.0 320 310 320" fill="none" stroke="#39404d" stroke-width="1" stroke-dasharray="4 3"><title>Clearing state complete</title></path>
+<path d="M310 320 C415.0 320 415.0 228 520 228" fill="none" stroke="#39404d" stroke-width="1"><title>Reset in Stopped</title></path>
+<path d="M310 182 C415.0 182 415.0 228 520 228" fill="none" stroke="#39404d" stroke-width="1"><title>Reset in Complete</title></path>
+<path d="M310 136 C415.0 136 415.0 136 520 136" fill="none" stroke="#39404d" stroke-width="1"><title>Start in Idle</title></path>
+<path d="M520 596 C645.0 596 645.0 274 770 274" fill="none" stroke="#39404d" stroke-width="1"><title>Hold in Execute</title></path>
+<path d="M310 228 C415.0 228 415.0 320 520 320" fill="none" stroke="#39404d" stroke-width="1"><title>Unhold in Held</title></path>
+<path d="M520 596 C645.0 596 645.0 366 770 366" fill="none" stroke="#39404d" stroke-width="1"><title>Suspend in Execute</title></path>
+<path d="M310 274 C415.0 274 415.0 412 520 412" fill="none" stroke="#39404d" stroke-width="1"><title>Unsuspend in Suspended</title></path>
+<path d="M310 366 C415.0 366 415.0 504 520 504" fill="none" stroke="#39404d" stroke-width="1"><title>Clear in Aborted</title></path>
+<rect x="60" y="120" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="141" fill="#e8eaee" font-size="12">Idle</text>
+<text x="298" y="141" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 4</text>
+<rect x="60" y="166" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="187" fill="#e8eaee" font-size="12">Complete</text>
+<text x="298" y="187" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 17</text>
+<rect x="60" y="212" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="233" fill="#e8eaee" font-size="12">Held</text>
+<text x="298" y="233" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 11</text>
+<rect x="60" y="258" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="279" fill="#e8eaee" font-size="12">Suspended</text>
+<text x="298" y="279" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 5</text>
+<rect x="60" y="304" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="325" fill="#e8eaee" font-size="12">Stopped</text>
+<text x="298" y="325" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 2</text>
+<rect x="60" y="350" width="250" height="32" rx="5" fill="#1b1f27" stroke="#39404d"/>
+<text x="72" y="371" fill="#e8eaee" font-size="12">Aborted</text>
+<text x="298" y="371" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 9</text>
+<rect x="520" y="120" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="141" fill="#e8eaee" font-size="12">Starting</text>
+<text x="758" y="141" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 3</text>
+<rect x="520" y="166" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="187" fill="#e8eaee" font-size="12">Completing</text>
+<text x="758" y="187" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 16</text>
+<rect x="520" y="212" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="233" fill="#e8eaee" font-size="12">Resetting</text>
+<text x="758" y="233" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 15</text>
+<rect x="520" y="258" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="279" fill="#e8eaee" font-size="12">Holding</text>
+<text x="758" y="279" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 10</text>
+<rect x="520" y="304" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="325" fill="#e8eaee" font-size="12">Unholding</text>
+<text x="758" y="325" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 12</text>
+<rect x="520" y="350" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="371" fill="#e8eaee" font-size="12">Suspending</text>
+<text x="758" y="371" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 13</text>
+<rect x="520" y="396" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="417" fill="#e8eaee" font-size="12">Unsuspending</text>
+<text x="758" y="417" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 14</text>
+<rect x="520" y="442" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="463" fill="#e8eaee" font-size="12">Aborting</text>
+<text x="758" y="463" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 8</text>
+<rect x="520" y="488" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="509" fill="#e8eaee" font-size="12">Clearing</text>
+<text x="758" y="509" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 1</text>
+<rect x="520" y="534" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="555" fill="#e8eaee" font-size="12">Stopping</text>
+<text x="758" y="555" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 7</text>
+<rect x="520" y="580" width="250" height="32" rx="5" fill="#12313f" stroke="#3f7f9c"/>
+<text x="532" y="601" fill="#e8eaee" font-size="12">Execute</text>
+<text x="758" y="601" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 6</text>
+<text x="60" y="654" fill="#9aa3af" font-size="11">17 states, 8 explicit command transitions, 11 state-complete transitions. Execute is both: it acts, and it is where product is made.</text>
+<text x="60" y="672" fill="#6f7784" font-size="10">ABORT and STOP are not drawn: both are legal from almost every state and are handled by exemption sets, so fifteen identical arrows would bury the rest.</text>
+<text x="60" y="690" fill="#6f7784" font-size="10">There is no "state complete" command, deliberately: completion is reported by the machine, never requested.</text>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa3af"/></marker></defs>
+</svg>

@@ -35,6 +35,34 @@ plant model elsewhere.
 **Picking this up after a break, or on Windows? Start with
 [`docs/RESUME_HERE.md`](docs/RESUME_HERE.md).**
 
+### One scan, which is the part prose is worst at
+
+![the scan cycle](docs/scan-cycle.svg)
+
+The PLC never sees the plant. It sees a **snapshot** taken at the scan
+boundary, so an input that changes during stages 2 to 5 is not an input change
+until the next stage 1. That single property is what makes the timing
+deterministic and reproducible, and it is the thing a reader most often skims
+past in a paragraph.
+
+### PackML, as implemented rather than as specified
+
+![the PackML state machine](docs/packml-states.svg)
+
+Seventeen states and two different kinds of transition. **Solid arrows are
+commands somebody sends; dashed arrows are the machine reporting its own work
+complete.** Conflating the two is the usual way to get PackML wrong, and there
+is deliberately no "state complete" command anywhere in `vpc.packml`.
+
+Both diagrams are **generated from the code they describe**, by
+`scripts/render_diagrams.py`, and CI redraws them and fails on a diff. That is
+the same rule the traceability matrix already lives under, for a stronger
+reason: a stale number in a README at least gets read, while nobody diffs a
+picture, so a diagram that quietly stopped matching the state machine would go
+on looking authoritative indefinitely. Tracing the diagram from the standard
+instead would have produced a picture of the standard, which proves nothing
+about this code.
+
 ## Running on a CODESYS runtime, which is the part that had to be proven
 
 The controller needs a vendor runtime and those are Windows only to author, so

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="370" viewBox="0 0 980 370" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#11141a"/>
+<text x="24" y="32" fill="#e8eaee" font-size="17" font-weight="600">One scan of the cell</text>
+<text x="24" y="52" fill="#9aa3af" font-size="12">Generated from vpc.process_image. The PLC never sees the plant directly; it sees a snapshot taken at stage 1.</text>
+<rect x="24" y="96" width="172" height="84" rx="6" fill="#1b1f27" stroke="#39404d"/>
+<text x="36" y="120" fill="#e8eaee" font-size="12" font-weight="600">1. Input snapshot</text>
+<text x="36" y="140" fill="#9aa3af" font-size="10">the plant's inputs are frozen</text>
+<text x="36" y="160" fill="#6f7784" font-size="10" font-style="italic">ProcessImage.copy()</text>
+<path d="M196 138 L212 138" stroke="#9aa3af" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="216" y="96" width="172" height="84" rx="6" fill="#1b1f27" stroke="#39404d"/>
+<text x="228" y="120" fill="#e8eaee" font-size="12" font-weight="600">2. PLC program</text>
+<text x="228" y="140" fill="#9aa3af" font-size="10">runs against the snapshot only</text>
+<text x="228" y="160" fill="#6f7784" font-size="10" font-style="italic">cell logic + PackML</text>
+<path d="M388 138 L404 138" stroke="#9aa3af" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="408" y="96" width="172" height="84" rx="6" fill="#1b1f27" stroke="#39404d"/>
+<text x="420" y="120" fill="#e8eaee" font-size="12" font-weight="600">3. Output image</text>
+<text x="420" y="140" fill="#9aa3af" font-size="10">coils written, not yet applied</text>
+<text x="420" y="160" fill="#6f7784" font-size="10" font-style="italic">ProcessImage.coils</text>
+<path d="M580 138 L596 138" stroke="#9aa3af" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="600" y="96" width="172" height="84" rx="6" fill="#1b1f27" stroke="#39404d"/>
+<text x="612" y="120" fill="#e8eaee" font-size="12" font-weight="600">4. Modbus exchange</text>
+<text x="612" y="140" fill="#9aa3af" font-size="10">the only wire between the two</text>
+<text x="612" y="160" fill="#6f7784" font-size="10" font-style="italic">server.py, port 502</text>
+<path d="M772 138 L788 138" stroke="#9aa3af" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="792" y="96" width="172" height="84" rx="6" fill="#1b1f27" stroke="#39404d"/>
+<text x="804" y="120" fill="#e8eaee" font-size="12" font-weight="600">5. Plant step</text>
+<text x="804" y="140" fill="#9aa3af" font-size="10">physics advances one period</text>
+<text x="804" y="160" fill="#6f7784" font-size="10" font-style="italic">Cell.step()</text>
+<path d="M878 180 L878 222 L110 222 L110 180" fill="none" stroke="#9aa3af" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<text x="340" y="240" fill="#9aa3af" font-size="11">next scan. An input that changes during stages 2 to 5 is not seen until here.</text>
+<text x="24" y="276" fill="#9aa3af" font-size="11">5 coils out, 8 discrete inputs, 3 input registers, exchanged over Modbus TCP each scan.</text>
+<text x="24" y="296" fill="#6f7784" font-size="10">Signal names and addresses come from vpc.process_image, so this count cannot disagree with the address map.</text>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa3af"/></marker></defs>
+</svg>
