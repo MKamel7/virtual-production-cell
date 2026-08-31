@@ -18,6 +18,20 @@ tests, so this cannot recurse.
 A number that is deliberately historical should not be written as "N tests" at
 all. Reword it instead of exempting it: an exemption is a second place for the
 truth to live.
+
+THE GATE HAD A HOLE, found 2026-08-31 and closed here. The first version matched
+`(\\d+)\\s+tests` against raw markdown, which cannot see either place the README
+actually states its count: the summary table writes `| **223** | tests, ...`,
+where emphasis and a table pipe sit between the number and the word, and the run
+instructions write `Expect **223 passed**`, which does not contain "tests" at
+all. So the headline number on the front page sat at 223 against a real 239 with
+this gate green the whole time, and only the count in `docs/SAFETY_ARGUMENT.md`
+was ever genuinely guarded.
+
+The fix is to normalise before matching rather than to write a cleverer regex:
+strip markdown emphasis and table pipes, collapse whitespace, then look for both
+"N tests" and "N passed". A gate that cannot see the claim it exists to guard is
+the same failure as no gate, wearing a green tick.
 """
 
 from __future__ import annotations
@@ -44,6 +58,26 @@ def collected_tests() -> int:
     return int(found.group(1))
 
 
+def normalise(markdown: str) -> str:
+    """Strip the markup that hides a count from a plain regex.
+
+    Emphasis markers and table pipes are removed and whitespace collapsed, so
+    `| **285** | tests,` and `Expect **285 passed**` both reduce to something
+    `(\\d+)\\s+(tests|passed)` can actually see. Without this the gate reads a
+    document it cannot parse and reports success.
+    """
+    return re.sub(r"\s+", " ", markdown.replace("*", " ").replace("|", " "))
+
+
+#: Both ways this repository states its suite size. "passed" is here because the
+#: README's run instructions use it and nothing else would catch that one.
+CLAIM = re.compile(r"(\d+)\s+(?:tests|passed)\b")
+
+
+def claimed_counts(markdown: str) -> set[int]:
+    return {int(m.group(1)) for m in CLAIM.finditer(normalise(markdown))}
+
+
 @pytest.mark.parametrize("document", DOCUMENTS)
 def test_every_stated_test_count_is_the_real_one(document: str) -> None:
     path = ROOT / document
@@ -51,10 +85,8 @@ def test_every_stated_test_count_is_the_real_one(document: str) -> None:
         pytest.skip(f"{document} is not in this repository")
 
     actual = collected_tests()
-    claimed = {int(n) for n in re.findall(r"(\d+)\s+tests\b",
-                                          path.read_text(encoding="utf-8"))}
-
-    wrong = sorted(n for n in claimed if n != actual)
+    wrong = sorted(n for n in claimed_counts(path.read_text(encoding="utf-8"))
+                   if n != actual)
     assert not wrong, (
         f"{document} says {wrong} tests; the suite collects {actual}. "
         f"Update the document, or reword the claim if it is historical.")
@@ -69,6 +101,24 @@ def test_the_documents_state_the_count_at_all() -> None:
     """
     stated = [d for d in DOCUMENTS
               if (ROOT / d).is_file()
-              and re.search(r"\d+\s+tests\b", (ROOT / d).read_text(encoding="utf-8"))]
+              and claimed_counts((ROOT / d).read_text(encoding="utf-8"))]
 
     assert stated, "no document states a test count, so this gate guards nothing"
+
+
+def test_the_gate_can_see_a_count_inside_a_markdown_table() -> None:
+    """The exact shape that slipped past the first version of this file.
+
+    Kept as a test rather than a comment because the failure was invisible: the
+    gate was green, the README was wrong, and nothing pointed at the regex.
+    """
+    assert claimed_counts("| **223** | tests, 100% branch coverage |") == {223}
+
+
+def test_the_gate_can_see_a_count_written_as_passed() -> None:
+    assert claimed_counts("Expect **223 passed**. Coverage is gated.") == {223}
+
+
+def test_normalising_does_not_invent_a_count() -> None:
+    """Prose with no claim in it must stay empty, or the gate cries wolf."""
+    assert claimed_counts("The 5 hazards map to 14 requirements.") == set()

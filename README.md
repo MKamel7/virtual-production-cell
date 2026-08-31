@@ -11,7 +11,7 @@ below. This README describes what exists, not what is planned.
 
 | | |
 |---|---|
-| **223** | tests, 100% statement **and** branch coverage, gated in CI |
+| **299** | tests, 100% statement **and** branch coverage, gated in CI |
 | **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
 | **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
@@ -24,6 +24,8 @@ PLC program, Structured Text          the thing under test
 plant simulation, Python              deterministic, exhaustively tested
    |
    +-- OPC UA server                  supervisory interface
+   |     +-- PackTags                 the machine's own view of itself
+   |     +-- ISA-95 hierarchy         where the machine SITS, and its KPIs
    +-- safety channel                 imports the protection layer from P2
 ```
 
@@ -183,6 +185,54 @@ Verified against **pymodbus** as well as its own tests, since a server checked
 only by the client that shares its assumptions proves self-consistency rather
 than a wire format.
 
+## The information model, which is the part PackTags cannot do
+
+PackTags answers *what is this machine doing*. It does not answer *which
+machine*, and on a real site that is the harder question. A flat address space
+works for exactly one machine; the second arrives with a `StateCurrent` of its
+own, the two collide, and every supervisor above them grows a per-machine
+translation layer, which is the thing PackTags existed to remove.
+
+`src/vpc/isa95.py` makes the equipment address structural, so a work unit is
+identified by where it sits:
+
+```
+Enterprise/Site/Packaging/BottlingLine1/PackagingCell
+                                        +-- Infeed      Filler    Capper
+                                        +-- QCStation   Outfeed
+```
+
+Browse to that path over OPC UA and the work unit carries `MachineState`,
+`UnitMode`, `StopReason`, the counts, the ISO 22400 KPIs (availability,
+performance, quality, OEE), a measured `CycleTime`, the recipe and the active
+alarm count. `tests/test_opcua_isa95.py` walks that path **by name at every
+level** with a real `asyncua` client over the encrypted channel, because being
+handed the node would let a broken hierarchy pass.
+
+Three things are deliberate and worth arguing with:
+
+- **The levels are IEC 62264-1**, which defines Enterprise, Site, Area, Work
+  Center and Work Unit. "Production Line" and "Work Cell" are specialisations of
+  the last two, not levels. `EquipmentModule` is **ISA-88**, borrowed on purpose
+  and labelled as such, because the filler and the capper are real addressable
+  things and pretending otherwise would be a worse model than crossing a
+  standard boundary and saying so.
+- **OEE is ISO 22400, not ISA-95.** It is routinely called an ISA-95 KPI and is
+  not one. ISA-95 gives the hierarchy the KPIs hang on.
+- **Only the work unit carries variables.** A Site has no `MachineState`, and
+  inventing one invites a supervisor to aggregate across a level that never
+  populated it.
+
+Two smaller decisions that a supervisor would otherwise trip on: a line that
+produced nothing publishes `CycleTime` of **-1.0** rather than 0.0, because OPC
+UA has no null for a Double and zero trends as an infinitely fast line; and
+nothing in the set is writable, because a supervisor able to set OEE could
+report a line healthy that is not.
+
+The hierarchy is not decoration. A supervisor written against this address space
+works unchanged against a site with four lines, which is the claim the flat tag
+list could not make.
+
 ## What it does when the link dies, which is the result worth having
 
 Demonstrated on the running cell, not argued from the model. With the controller
@@ -272,7 +322,7 @@ its four output expressions against it, so the two cannot drift.
 uv run --group dev pytest -q
 ```
 
-Expect **223 passed**. 100% statement and branch coverage is gated, along with
+Expect **299 passed**. 100% statement and branch coverage is gated, along with
 `ruff` and `mypy --strict`.
 
 To run the plant for a controller to connect to, default port 502:
