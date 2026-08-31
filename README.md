@@ -212,7 +212,7 @@ could not see, and the only correct response to that is to stop and wait for a
 person who can. So the cell sits in Aborted needing a deliberate Clear, Reset and
 Start, exactly as it would after a guard opening.
 
-Three defects were found by running the cell that 144 tests did not catch, and
+Three defects were found by running the cell that the suite of the time did not catch, and
 they are worth naming because each is a class rather than a typo:
 
 - **The plant died when the master reset the connection.** The graceful

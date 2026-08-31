@@ -40,7 +40,7 @@ about what the machine does mechanically once torque is removed.
 | The ST matches the verified model | `tests/test_st_matches_the_model.py` | The program cannot be executed here, so it is parsed and compared against the exhaustively verified Python model |
 | The wire layer is exhaustive | `tests/test_modbus.py` | Every function code, exception path, boundary, malformed frame and split point, with no socket |
 | It works against a real client | `pymodbus` interop | A server checked only by the client that shares its assumptions proves self consistency, not a wire format |
-| 159 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
+| 239 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
 
 ### The traceability gate runs in both directions
 
