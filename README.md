@@ -309,7 +309,6 @@ its four output expressions against it, so the two cannot drift.
 
 ## Roadmap
 
-- **An ISA-95 information model, not just tags** — enterprise, site, area, line, cell, equipment, exposing `MachineState`, mode, good and reject counts, cycle time, downtime reason, alarms and recipe. Then MQTT or Sparkplug B as the edge interface, giving the full path: PLC, Modbus, simulation, OPC UA, Sparkplug, historian. **The highest-value addition here for German automation work.**
 - **Siemens S7 or PLCSIM Advanced interoperability**, after the information model. The model is what makes a second PLC vendor interesting rather than repetitive.
 - **A Wireshark capture of a live CODESYS exchange** — makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
 - **Donate the OPC UA hardening to the other repos.** `opcua.py` is the only correct implementation in the portfolio. The immediate half is already handled, since `moveit-ur5-pick-place` now refuses anonymous clients; what is left is extracting a shared helper so the fourth repo does not repeat it, and that is a portfolio-wide packaging change rather than work on this one.
