@@ -55,10 +55,14 @@ jobs:
       # see it without running anything. This catches the case where the
       # requirements or the markers change and the checked in report goes stale:
       # the diff is the failure message.
-      - name: Fail if the committed matrix is stale
+      - name: Redraw the diagrams
+        run: uv run --group dev python scripts/render_diagrams.py
+
+      - name: Fail if the committed matrix or the diagrams are stale
         run: |
-          if ! git diff --quiet -- report/; then
-            echo "::error::report/ is out of date. Run scripts/check_traceability.py and commit."
+          if ! git diff --quiet -- report/ docs/; then
+            echo "::error::report/ or docs/ is out of date. Run scripts/check_traceability.py and scripts/render_diagrams.py, then commit."
+            git --no-pager diff --stat -- report/ docs/
             git --no-pager diff -- report/
             exit 1
           fi

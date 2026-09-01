@@ -33,7 +33,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from vpc.isa95 import (
+    WORK_UNIT_VARIABLES,
+    EquipmentModel,
+    WorkUnitSnapshot,
+    default_model,
+    snapshot,
+    work_unit_values,
+)
 from vpc.packtags import PackTags, TagGroup, browse_names
+
+#: A snapshot of nothing, used only to ask the information model which names it
+#: publishes. Built once because `check_isa95_names_agree()` is called at
+#: startup and the answer cannot change at runtime.
+_EMPTY_SNAPSHOT: WorkUnitSnapshot = snapshot(
+    PackTags(), producing_scans=0, planned_scans=0,
+    good_count=0, reject_count=0)
 
 #: Where the generated certificate and key live. Regenerated rather than
 #: committed: a private key in a public repository is a private key no longer.
@@ -269,6 +284,84 @@ async def publish(nodes: dict[str, tuple[Any, Any]], tags: PackTags) -> None:
         for name, value in group_values.items():
             node, variant = nodes[f"{group.value}.{name}"]
             await node.write_value(value, variant)
+
+
+def check_isa95_names_agree() -> None:
+    """The ISA-95 variables published must be the ones declared.
+
+    The same check as `check_names_agree()` and for the same reason, against the
+    other half of the address space. `isa95.WORK_UNIT_VARIABLES` is what a
+    supervisor browses for; `isa95.work_unit_values()` is what actually gets
+    written. A name in one and not the other is a tag that reads as absent.
+    """
+    published = tuple(work_unit_values(_EMPTY_SNAPSHOT))
+    if published != WORK_UNIT_VARIABLES:
+        raise ValueError(
+            "ISA-95 address space disagrees with the information model: "
+            f"declared {WORK_UNIT_VARIABLES}, publishes {published}")
+
+
+def _variant_for(value: object, ua: Any) -> Any:
+    """Pick the OPC UA type for a published value.
+
+    Float before int, because `isinstance(True, int)` is also true and a KPI
+    ratio that arrived as an Int32 would be published as 0 or 1. There are no
+    booleans in the ISA-95 variable set today, and this ordering means adding
+    one later cannot silently truncate a ratio.
+    """
+    if isinstance(value, float):
+        return ua.VariantType.Double
+    if isinstance(value, int):
+        return ua.VariantType.Int32
+    return ua.VariantType.String
+
+
+async def build_isa95_address_space(
+        server: Any, snap: WorkUnitSnapshot,
+        model: EquipmentModel | None = None) -> dict[str, tuple[Any, Any]]:
+    """Create the equipment hierarchy as nested objects, variables on the unit.
+
+    The hierarchy is built from `EquipmentModel.walk()` rather than written out
+    here, so the address space cannot describe a different plant from the one
+    the information model describes. That is the same discipline as taking tag
+    names from `packtags.browse_names()`.
+
+    Only the work unit carries variables. The levels above it are addresses, not
+    machines: a Site has no MachineState, and giving it one would invite a
+    supervisor to aggregate across a level that never populated it.
+    """
+    from asyncua import ua
+
+    model = model or default_model()
+    index = await server.register_namespace(NAMESPACE)
+    objects: dict[str, Any] = {}
+    nodes: dict[str, tuple[Any, Any]] = {}
+
+    # The node itself is not needed here, only its position: `walk()` yields
+    # parents before children, so the parent object always exists by the time a
+    # child asks for it, and the path is the whole address.
+    for path, _node in model.walk():
+        parent_path, _, name = path.rpartition("/")
+        parent = objects[parent_path] if parent_path else server.nodes.objects
+        objects[path] = await parent.add_object(index, name)
+
+    unit = objects[snap.path]
+    for name, value in work_unit_values(snap).items():
+        variant = _variant_for(value, ua)
+        variable = await unit.add_variable(index, name, value, variant)
+        # Every one of these is the machine's own view of itself. None of them
+        # is writable: a supervisor able to set OEE could report a line as
+        # healthy that is not, which is worse than having no figure at all.
+        nodes[f"{snap.path}.{name}"] = (variable, variant)
+    return nodes
+
+
+async def publish_isa95(nodes: dict[str, tuple[Any, Any]],
+                        snap: WorkUnitSnapshot) -> None:
+    """Push the current information-model values into the address space."""
+    for name, value in work_unit_values(snap).items():
+        node, variant = nodes[f"{snap.path}.{name}"]
+        await node.write_value(value, variant)
 
 
 async def make_server(endpoint: str = DEFAULT_ENDPOINT,

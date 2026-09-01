@@ -11,7 +11,7 @@ below. This README describes what exists, not what is planned.
 
 | | |
 |---|---|
-| **223** | tests, 100% statement **and** branch coverage, gated in CI |
+| **299** | tests, 100% statement **and** branch coverage, gated in CI |
 | **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
 | **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
@@ -24,6 +24,8 @@ PLC program, Structured Text          the thing under test
 plant simulation, Python              deterministic, exhaustively tested
    |
    +-- OPC UA server                  supervisory interface
+   |     +-- PackTags                 the machine's own view of itself
+   |     +-- ISA-95 hierarchy         where the machine SITS, and its KPIs
    +-- safety channel                 imports the protection layer from P2
 ```
 
@@ -34,6 +36,34 @@ plant model elsewhere.
 
 **Picking this up after a break, or on Windows? Start with
 [`docs/RESUME_HERE.md`](docs/RESUME_HERE.md).**
+
+### One scan, which is the part prose is worst at
+
+![the scan cycle](docs/scan-cycle.svg)
+
+The PLC never sees the plant. It sees a **snapshot** taken at the scan
+boundary, so an input that changes during stages 2 to 5 is not an input change
+until the next stage 1. That single property is what makes the timing
+deterministic and reproducible, and it is the thing a reader most often skims
+past in a paragraph.
+
+### PackML, as implemented rather than as specified
+
+![the PackML state machine](docs/packml-states.svg)
+
+Seventeen states and two different kinds of transition. **Solid arrows are
+commands somebody sends; dashed arrows are the machine reporting its own work
+complete.** Conflating the two is the usual way to get PackML wrong, and there
+is deliberately no "state complete" command anywhere in `vpc.packml`.
+
+Both diagrams are **generated from the code they describe**, by
+`scripts/render_diagrams.py`, and CI redraws them and fails on a diff. That is
+the same rule the traceability matrix already lives under, for a stronger
+reason: a stale number in a README at least gets read, while nobody diffs a
+picture, so a diagram that quietly stopped matching the state machine would go
+on looking authoritative indefinitely. Tracing the diagram from the standard
+instead would have produced a picture of the standard, which proves nothing
+about this code.
 
 ## Running on a CODESYS runtime, which is the part that had to be proven
 
@@ -155,6 +185,54 @@ Verified against **pymodbus** as well as its own tests, since a server checked
 only by the client that shares its assumptions proves self-consistency rather
 than a wire format.
 
+## The information model, which is the part PackTags cannot do
+
+PackTags answers *what is this machine doing*. It does not answer *which
+machine*, and on a real site that is the harder question. A flat address space
+works for exactly one machine; the second arrives with a `StateCurrent` of its
+own, the two collide, and every supervisor above them grows a per-machine
+translation layer, which is the thing PackTags existed to remove.
+
+`src/vpc/isa95.py` makes the equipment address structural, so a work unit is
+identified by where it sits:
+
+```
+Enterprise/Site/Packaging/BottlingLine1/PackagingCell
+                                        +-- Infeed      Filler    Capper
+                                        +-- QCStation   Outfeed
+```
+
+Browse to that path over OPC UA and the work unit carries `MachineState`,
+`UnitMode`, `StopReason`, the counts, the ISO 22400 KPIs (availability,
+performance, quality, OEE), a measured `CycleTime`, the recipe and the active
+alarm count. `tests/test_opcua_isa95.py` walks that path **by name at every
+level** with a real `asyncua` client over the encrypted channel, because being
+handed the node would let a broken hierarchy pass.
+
+Three things are deliberate and worth arguing with:
+
+- **The levels are IEC 62264-1**, which defines Enterprise, Site, Area, Work
+  Center and Work Unit. "Production Line" and "Work Cell" are specialisations of
+  the last two, not levels. `EquipmentModule` is **ISA-88**, borrowed on purpose
+  and labelled as such, because the filler and the capper are real addressable
+  things and pretending otherwise would be a worse model than crossing a
+  standard boundary and saying so.
+- **OEE is ISO 22400, not ISA-95.** It is routinely called an ISA-95 KPI and is
+  not one. ISA-95 gives the hierarchy the KPIs hang on.
+- **Only the work unit carries variables.** A Site has no `MachineState`, and
+  inventing one invites a supervisor to aggregate across a level that never
+  populated it.
+
+Two smaller decisions that a supervisor would otherwise trip on: a line that
+produced nothing publishes `CycleTime` of **-1.0** rather than 0.0, because OPC
+UA has no null for a Double and zero trends as an infinitely fast line; and
+nothing in the set is writable, because a supervisor able to set OEE could
+report a line healthy that is not.
+
+The hierarchy is not decoration. A supervisor written against this address space
+works unchanged against a site with four lines, which is the claim the flat tag
+list could not make.
+
 ## What it does when the link dies, which is the result worth having
 
 Demonstrated on the running cell, not argued from the model. With the controller
@@ -184,7 +262,7 @@ could not see, and the only correct response to that is to stop and wait for a
 person who can. So the cell sits in Aborted needing a deliberate Clear, Reset and
 Start, exactly as it would after a guard opening.
 
-Three defects were found by running the cell that 144 tests did not catch, and
+Three defects were found by running the cell that the suite of the time did not catch, and
 they are worth naming because each is a class rather than a typo:
 
 - **The plant died when the master reset the connection.** The graceful
@@ -229,13 +307,22 @@ It is the executable specification of the policy `plc/cell_control.st`
 implements, and `tests/test_st_matches_the_model.py` parses the ST and compares
 its four output expressions against it, so the two cannot drift.
 
+## Roadmap
+
+- **An ISA-95 information model, not just tags** — enterprise, site, area, line, cell, equipment, exposing `MachineState`, mode, good and reject counts, cycle time, downtime reason, alarms and recipe. Then MQTT or Sparkplug B as the edge interface, giving the full path: PLC, Modbus, simulation, OPC UA, Sparkplug, historian. **The highest-value addition here for German automation work.**
+- **Siemens S7 or PLCSIM Advanced interoperability**, after the information model. The model is what makes a second PLC vendor interesting rather than repetitive.
+- **A Wireshark capture of a live CODESYS exchange** — makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
+- **Donate the OPC UA hardening to the other repos.** `opcua.py` is the only correct implementation in the portfolio. The immediate half is already handled, since `moveit-ur5-pick-place` now refuses anonymous clients; what is left is extracting a shared helper so the fourth repo does not repeat it, and that is a portfolio-wide packaging change rather than work on this one.
+
+**Already done, recorded here because it was on an earlier list.** Property-testing the register map: `tests/test_modbus_properties.py` checks parsing, framing, round-trips and, most usefully, that **no coil write at any of the 65,536 addresses can reach a discrete input**, over the whole space rather than at the address somebody thought to try. `tests/test_st_matches_the_model.py` asserts the ST declarations are byte-identical to the generated address map, so the PLC side cannot drift from the Python side. A test guards against the file silently becoming decoration.
+
 ## Running it
 
 ```sh
 uv run --group dev pytest -q
 ```
 
-Expect **223 passed**. 100% statement and branch coverage is gated, along with
+Expect **299 passed**. 100% statement and branch coverage is gated, along with
 `ruff` and `mypy --strict`.
 
 To run the plant for a controller to connect to, default port 502:
