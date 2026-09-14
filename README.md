@@ -34,8 +34,8 @@ below it is Python and runs anywhere. That is also how a real virtual
 commissioning rig is arranged, with the controller on its own runtime and the
 plant model elsewhere.
 
-**Picking this up after a break, or on Windows? Start with
-[`docs/RESUME_HERE.md`](docs/RESUME_HERE.md).**
+**New to the repository, or running it on Windows? Start with
+[`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).**
 
 ### One scan, which is the part prose is worst at
 
@@ -310,7 +310,7 @@ its four output expressions against it, so the two cannot drift.
 ## Roadmap
 
 - **Siemens S7 or PLCSIM Advanced interoperability**, after the information model. The model is what makes a second PLC vendor interesting rather than repetitive.
-- **A Wireshark capture of a live CODESYS exchange** — makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
+- **A Wireshark capture of a live CODESYS exchange**, which makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
 - **Donate the OPC UA hardening to the other repos.** `opcua.py` is the only correct implementation in the portfolio. The immediate half is already handled, since `moveit-ur5-pick-place` now refuses anonymous clients; what is left is extracting a shared helper so the fourth repo does not repeat it, and that is a portfolio-wide packaging change rather than work on this one.
 
 **Already done, recorded here because it was on an earlier list.** Property-testing the register map: `tests/test_modbus_properties.py` checks parsing, framing, round-trips and, most usefully, that **no coil write at any of the 65,536 addresses can reach a discrete input**, over the whole space rather than at the address somebody thought to try. `tests/test_st_matches_the_model.py` asserts the ST declarations are byte-identical to the generated address map, so the PLC side cannot drift from the Python side. A test guards against the file silently becoming decoration.

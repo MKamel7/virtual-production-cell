@@ -1,4 +1,4 @@
-# Resume here
+# Project status
 
 State of the project, kept current. This replaces a handover note written on
 31 July 2026 for a specific reboot, which by August had become wrong in three
