@@ -1,5 +1,11 @@
 # Virtual production cell
 
+[![CI](https://github.com/MKamel7/virtual-production-cell/actions/workflows/ci.yml/badge.svg)](https://github.com/MKamel7/virtual-production-cell/actions)
+[![Tests](https://img.shields.io/badge/tests-299%20passing-brightgreen)](tests)
+[![Coverage](https://img.shields.io/badge/branch%20coverage-100%25-brightgreen)](tests)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org)
+
+
 A packaging cell simulated in enough detail to run **real IEC 61131-3 control
 against it**, which is what virtual commissioning means: the PLC program is the
 thing under test, and the plant is a model it drives.
@@ -15,7 +21,12 @@ below. This README describes what exists, not what is planned.
 | **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
 | **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
-## Architecture
+![the cell running](docs/assets/cell-demo.gif)
+
+*The cell running at 4x. The PLC program is driving it over Modbus TCP; nothing here
+is animation.*
+
+## 🏗️ Architecture
 
 ```
 PLC program, Structured Text          the thing under test
@@ -65,7 +76,9 @@ on looking authoritative indefinitely. Tracing the diagram from the standard
 instead would have produced a picture of the standard, which proves nothing
 about this code.
 
-## Running on a CODESYS runtime, which is the part that had to be proven
+## ✅ Running on a CODESYS runtime
+
+This is the part that had to be proven rather than asserted.
 
 The controller needs a vendor runtime and those are Windows only to author, so
 the project splits: plant, state model and tests are developed and verified on
@@ -97,7 +110,7 @@ scan, so the controller never reads a half-updated image.*
 is generated from one enum in `src/vpc/process_image.py`, so the two halves
 cannot disagree.*
 
-## What exists
+## ⚙️ What exists
 
 **`src/vpc/packml.py`** implements the PackML state model from ISA-TR88.00.02:
 seventeen states, the acting and wait distinction, and the state complete
@@ -185,7 +198,9 @@ Verified against **pymodbus** as well as its own tests, since a server checked
 only by the client that shares its assumptions proves self-consistency rather
 than a wire format.
 
-## The information model, which is the part PackTags cannot do
+## 🗃️ The information model
+
+This is the part PackTags cannot do.
 
 PackTags answers *what is this machine doing*. It does not answer *which
 machine*, and on a real site that is the harder question. A flat address space
@@ -233,7 +248,9 @@ The hierarchy is not decoration. A supervisor written against this address space
 works unchanged against a site with four lines, which is the claim the flat tag
 list could not make.
 
-## What it does when the link dies, which is the result worth having
+## 🛡️ What it does when the link dies
+
+This is the result worth having.
 
 Demonstrated on the running cell, not argued from the model. With the controller
 producing, the plant process was killed:
@@ -275,7 +292,9 @@ they are worth naming because each is a class rather than a typo:
   cleared, so it fired the next time the machine entered a state that wanted it.
   The cell was one Stop away from resetting itself.
 
-## Scenario runs, and why three numbers beat one
+## 📊 Scenario runs
+
+Three numbers beat one, and this is why.
 
 `report/oee.md`, regenerated and diffed in CI. Each run isolates a single loss,
 so the difference against the baseline is attributable to one cause.
@@ -307,7 +326,33 @@ It is the executable specification of the policy `plc/cell_control.st`
 implements, and `tests/test_st_matches_the_model.py` parses the ST and compares
 its four output expressions against it, so the two cannot drift.
 
-## Roadmap
+## 💡 What I learned
+
+- **The scan cycle is the whole game, and prose hides it.** The PLC never sees the
+  plant, it sees a snapshot taken at the scan boundary, so an input that changes
+  mid-scan is not an input change until the next one. I could describe that in a
+  paragraph and watch people skim it. Generating the diagram from the code it
+  describes, and failing CI on a diff, is what finally made it land.
+
+- **Most PackML implementations are wrong in the same way.** They conflate a command
+  somebody sends with the machine reporting its own work complete. Once I separated
+  those two kinds of transition there is deliberately no "state complete" command
+  anywhere in `vpc.packml`, and the state machine stopped fighting me.
+
+- **A second implementation is not a second opinion.** `ReferenceController` is not a
+  rival controller, it is the executable specification that `cell_control.st` has to
+  match, and a test parses the Structured Text to compare them. Without that the two
+  drift apart quietly and both look fine.
+
+- **Property testing beats picking addresses.** Checking that no coil write at any of
+  the 65,536 Modbus addresses can reach a discrete input found more than any test I
+  would have written by choosing addresses I already suspected.
+
+- **Three numbers beat one.** A single OEE figure invites the question "under what
+  conditions". 62.5 percent baseline, 55.0 with a guard interruption and 46.5 with a
+  starved infeed says something a single number cannot.
+
+## 🔭 Future improvements
 
 - **Siemens S7 or PLCSIM Advanced interoperability**, after the information model. The model is what makes a second PLC vendor interesting rather than repetitive.
 - **A Wireshark capture of a live CODESYS exchange**, which makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
@@ -315,7 +360,7 @@ its four output expressions against it, so the two cannot drift.
 
 **Already done, recorded here because it was on an earlier list.** Property-testing the register map: `tests/test_modbus_properties.py` checks parsing, framing, round-trips and, most usefully, that **no coil write at any of the 65,536 addresses can reach a discrete input**, over the whole space rather than at the address somebody thought to try. `tests/test_st_matches_the_model.py` asserts the ST declarations are byte-identical to the generated address map, so the PLC side cannot drift from the Python side. A test guards against the file silently becoming decoration.
 
-## Running it
+## ▶️ Running it
 
 ```sh
 uv run --group dev pytest -q
