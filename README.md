@@ -248,6 +248,16 @@ The hierarchy is not decoration. A supervisor written against this address space
 works unchanged against a site with four lines, which is the claim the flat tag
 list could not make.
 
+## 🛠️ Built with
+
+| | |
+| --- | --- |
+| **Control** | CODESYS SoftPLC, IEC 61131-3 Structured Text |
+| **Plant model** | Python, deterministic and exhaustively tested |
+| **Interfaces** | Modbus TCP, OPC UA with PackTags, ISA-95 hierarchy |
+| **Standards modelled** | PackML state machine, OEE |
+| **Engineering** | 299 tests at 100% branch coverage, GitHub Actions CI, ruff, mypy --strict |
+
 ## 🛡️ What it does when the link dies
 
 This is the result worth having.
@@ -395,3 +405,9 @@ uv run python scripts/check_traceability.py
 
 Both are generated files. Editing `report/oee.md` or `report/traceability.md` by
 hand defeats the point of having them.
+
+---
+
+Built by **Mo Kamel**, M.Eng. Mechatronic and Cyber-Physical Systems, Technische
+Hochschule Deggendorf.
+[Portfolio](https://mkamel7.github.io) · [LinkedIn](https://linkedin.com/in/mo-kamel7)
