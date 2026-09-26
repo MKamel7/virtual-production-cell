@@ -49,7 +49,7 @@ SCAN_STAGES = (
     ("4. Modbus exchange", "the only wire between the two",
      "server.py, port 502"),
     ("5. Plant step", "physics advances one period",
-     "Cell.step()"),
+     "Cell.scan()"),
 )
 
 
@@ -184,7 +184,7 @@ def render_packml() -> str:
 
     # ABORT and STOP are deliberately not in ON_COMMAND: they are legal from
     # almost everywhere and are handled by exemption sets, so drawing an arrow
-    # from every state would bury the diagram in fifteen identical lines. The
+    # from every state would bury the diagram in 27 identical lines. The
     # note below the picture says so rather than the picture pretending they
     # do not exist.
     for (state, command), target in packml.ON_COMMAND.items():
@@ -207,12 +207,14 @@ def render_packml() -> str:
             f"command transitions, {len(packml.ON_COMPLETE)} state-complete "
             f"transitions. Execute is both: it acts, and it is where product "
             f"is made.")
+    abort_arrows = len(packml.State) - len(packml._ABORT_EXEMPT)
+    stop_arrows = len(packml.State) - len(packml._STOP_EXEMPT)
     out.append(f'<text x="60" y="{height - 62}" fill="{MUTED}" font-size="11">'
                f'{escape(note)}</text>')
     out.append(f'<text x="60" y="{height - 44}" fill="#6f7784" font-size="10">'
                f'ABORT and STOP are not drawn: both are legal from almost every '
-               f'state and are handled by exemption sets, so fifteen identical '
-               f'arrows would bury the rest.</text>')
+               f'state and are handled by exemption sets, so {abort_arrows} Abort '
+               f'and {stop_arrows} Stop arrows would bury the rest.</text>')
     out.append(f'<text x="60" y="{height - 26}" fill="#6f7784" font-size="10">'
                f'There is no "state complete" command, deliberately: completion '
                f'is reported by the machine, never requested.</text>')

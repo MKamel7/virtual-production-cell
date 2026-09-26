@@ -11,8 +11,8 @@ OPC UA and the PROFIsafe safety channel as not yet built when all three exist.
 | | |
 |---|---|
 | Visibility | **public** |
-| Tests | **223**, 100% statement and branch coverage, gated in CI |
-| Safety case | 5 hazards, 5 safety goals, 14 requirements, 28 tests claiming one, gated both ways |
+| Tests | **300**, 100% statement and branch coverage, gated in CI |
+| Safety case | 5 hazards, 5 safety goals, 14 requirements, 28 verifying tests, gated both ways |
 | PLC | Structured Text **compiled and run on a CODESYS SoftPLC**, driving the plant over Modbus TCP |
 | Scenarios | three runs reported in `report/oee.md`, baseline OEE 62.5% |
 
@@ -22,7 +22,7 @@ OPC UA and the PROFIsafe safety channel as not yet built when all three exist.
 uv run --group dev pytest -q
 ```
 
-Expect **223 passed**. Do this **before touching any PLC toolchain.** It is the
+Expect **300 passed**. Do this **before touching any PLC toolchain.** It is the
 cheap check, and it says the environment is sane before something harder fails.
 A toolchain problem and a program problem look identical when you meet them
 together.

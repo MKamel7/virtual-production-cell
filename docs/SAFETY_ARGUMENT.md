@@ -40,7 +40,7 @@ about what the machine does mechanically once torque is removed.
 | The ST matches the verified model | `tests/test_st_matches_the_model.py` | The program cannot be executed here, so it is parsed and compared against the exhaustively verified Python model |
 | The wire layer is exhaustive | `tests/test_modbus.py` | Every function code, exception path, boundary, malformed frame and split point, with no socket |
 | It works against a real client | `pymodbus` interop | A server checked only by the client that shares its assumptions proves self consistency, not a wire format |
-| 299 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
+| 300 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
 
 ### The traceability gate runs in both directions
 
@@ -133,9 +133,11 @@ alongside does exactly that analysis for its own device and finds that the
 answers change; the same is very likely true here and is simply not done.
 
 **Security.** Modbus TCP has no authentication and no integrity protection.
-Anything that can reach port 502 can command every actuator, and the only reason
-this is acceptable is that the plant binds loopback on a laptop. On a real
-network this belongs in a segregated cell zone with a conduit through a firewall,
+Anything that can reach port 502 can command every actuator. `CellServer` binds
+loopback by default, but `python -m vpc.server` binds every interface so a
+runtime on another machine or VM can reach it, and the only reason that is
+acceptable is that it runs on a laptop behind a firewall or on a host-only
+network. On a real network this belongs in a segregated cell zone with a conduit through a firewall,
 per IEC 62443. That is stated rather than solved.
 
 ## 6. What would make this stronger
@@ -148,10 +150,13 @@ In the order a real project would do them.
    that.
 2. **Common cause and dual point analysis**, importing the method already built
    next door.
-3. **The safety channel carried over PROFIsafe framing**, which exists and is
-   tested in the fault injection harness, giving a real protected channel
-   instead of a plain coil.
-4. **Scenario runs with OEE**, which would let the requirements be argued against
-   production data rather than against unit tests.
+3. **The PROFIsafe-framed safety channel in the live path.** The channel itself
+   is built: `src/vpc/safety_channel.py` carries the guard and torque state over
+   the framing imported from the fault injection harness, and it is tested. But
+   neither the plant server nor the PLC uses it yet, so on the running cell
+   `SAFETY_OK` and `GUARD_CLOSED` are still plain Modbus bits.
+4. **Requirements argued from the scenario runs.** The runs exist
+   (`report/oee.md`), but no requirement is yet argued from production data
+   rather than from unit tests.
 5. **A physical cell**, which is the only thing that turns any of this from
    verification into validation.

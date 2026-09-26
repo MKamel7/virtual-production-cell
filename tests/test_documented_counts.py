@@ -44,7 +44,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCUMENTS = ("README.md", "docs/SAFETY_ARGUMENT.md")
+DOCUMENTS = ("README.md", "docs/SAFETY_ARGUMENT.md", "docs/PROJECT_STATUS.md")
 
 
 def collected_tests() -> int:

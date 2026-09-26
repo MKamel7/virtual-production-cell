@@ -1,9 +1,9 @@
 # Virtual production cell
 
-[![CI](https://github.com/MKamel7/virtual-production-cell/actions/workflows/ci.yml/badge.svg)](https://github.com/MKamel7/virtual-production-cell/actions)
-[![Tests](https://img.shields.io/badge/tests-299%20passing-brightgreen)](tests)
+[![CI](https://github.com/MKamel7/virtual-production-cell/actions/workflows/verify.yml/badge.svg)](https://github.com/MKamel7/virtual-production-cell/actions)
+[![Tests](https://img.shields.io/badge/tests-300%20passing-brightgreen)](tests)
 [![Coverage](https://img.shields.io/badge/branch%20coverage-100%25-brightgreen)](tests)
-[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org)
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.12-blue)](https://www.python.org)
 
 
 A packaging cell simulated in enough detail to run **real IEC 61131-3 control
@@ -17,7 +17,7 @@ below. This README describes what exists, not what is planned.
 
 | | |
 |---|---|
-| **299** | tests, 100% statement **and** branch coverage, gated in CI |
+| **300** | tests, 100% statement **and** branch coverage, gated in CI |
 | **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
 | **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
@@ -99,15 +99,15 @@ driven over Modbus TCP.*
 advancing, the link watchdog fired, PackML went to state 9 Aborted and every
 actuator dropped. **SR-06 and SR-07 forced by hand, not argued for.***
 
-![The Modbus client configuration: discrete inputs, input registers and multiple coils, each cyclic at 20 ms](docs/media/codesys-channels.png)
+![The Modbus client configuration: discrete inputs and input registers cyclic at 20 ms, multiple coils cyclic at 100 ms](docs/media/codesys-channels.png)
 
-*The Modbus client channels, each cyclic at 20 ms against the plant's 50 ms
-scan, so the controller never reads a half-updated image.*
+*The Modbus client channels. The two reads are cyclic at 20 ms against the
+plant's 50 ms scan; the coil write is cyclic at 100 ms.*
 
 ![The process image mapped bit by bit onto the PLC variables](docs/media/codesys-mapping.png)
 
 *The process image mapped bit by bit onto the PLC's variables. The address map
-is generated from one enum in `src/vpc/process_image.py`, so the two halves
+is generated from the enums in `src/vpc/process_image.py`, so the two halves
 cannot disagree.*
 
 ## ⚙️ What exists
@@ -172,7 +172,7 @@ function in it goes from bytes to bytes with no socket anywhere, which is what
 makes the wiring layer exhaustively testable: every function code, every
 exception path, every boundary, every malformed frame, and every split point of
 a frame arriving one byte at a time. Modbus TCP is small, and a dependency whose
-API moves between minor versions is a worse bet than 200 lines that do not.
+API moves between minor versions is a worse bet than the roughly 300 lines here that do not.
 
 **`src/vpc/server.py`** is the bridge, and it is the reason everything above is
 shaped the way it is. The PLC is the client and the plant is the server, which
@@ -256,7 +256,7 @@ list could not make.
 | **Plant model** | Python, deterministic and exhaustively tested |
 | **Interfaces** | Modbus TCP, OPC UA with PackTags, ISA-95 hierarchy |
 | **Standards modelled** | PackML state machine, OEE |
-| **Engineering** | 299 tests at 100% branch coverage, GitHub Actions CI, ruff, mypy --strict |
+| **Engineering** | 300 tests at 100% branch coverage, GitHub Actions CI, ruff, mypy --strict |
 
 ## 🛡️ What it does when the link dies
 
@@ -289,8 +289,9 @@ could not see, and the only correct response to that is to stop and wait for a
 person who can. So the cell sits in Aborted needing a deliberate Clear, Reset and
 Start, exactly as it would after a guard opening.
 
-Three defects were found by running the cell that the suite of the time did not catch, and
-they are worth naming because each is a class rather than a typo:
+Five defects were found by running the cell that the suite of the time did not catch
+(`docs/SAFETY_ARGUMENT.md` lists all five). Three are worth naming here because each
+is a class rather than a typo:
 
 - **The plant died when the master reset the connection.** The graceful
   disconnect was handled and the abrupt one was not, which is backwards: a rig's
@@ -354,9 +355,9 @@ its four output expressions against it, so the two cannot drift.
   match, and a test parses the Structured Text to compare them. Without that the two
   drift apart quietly and both look fine.
 
-- **Property testing beats picking addresses.** Checking that no coil write at any of
-  the 65,536 Modbus addresses can reach a discrete input found more than any test I
-  would have written by choosing addresses I already suspected.
+- **Property testing beats picking addresses.** Checking that no coil write can reach a
+  discrete input, at up to 300 addresses drawn per run from the whole 65,536 range, found more
+  than any test I would have written by choosing addresses I already suspected.
 
 - **Three numbers beat one.** A single OEE figure invites the question "under what
   conditions". 62.5 percent baseline, 55.0 with a guard interruption and 46.5 with a
@@ -368,7 +369,7 @@ its four output expressions against it, so the two cannot drift.
 - **A Wireshark capture of a live CODESYS exchange**, which makes the protocol concrete rather than asserted. Needs the vendor runtime, so it is the one item that cannot be done headlessly.
 - **Donate the OPC UA hardening to the other repos.** `opcua.py` is the only correct implementation in the portfolio. The immediate half is already handled, since `moveit-ur5-pick-place` now refuses anonymous clients; what is left is extracting a shared helper so the fourth repo does not repeat it, and that is a portfolio-wide packaging change rather than work on this one.
 
-**Already done, recorded here because it was on an earlier list.** Property-testing the register map: `tests/test_modbus_properties.py` checks parsing, framing, round-trips and, most usefully, that **no coil write at any of the 65,536 addresses can reach a discrete input**, over the whole space rather than at the address somebody thought to try. `tests/test_st_matches_the_model.py` asserts the ST declarations are byte-identical to the generated address map, so the PLC side cannot drift from the Python side. A test guards against the file silently becoming decoration.
+**Already done, recorded here because it was on an earlier list.** Property-testing the register map: `tests/test_modbus_properties.py` checks parsing, framing, round-trips and, most usefully, that **no coil write can reach a discrete input**, at up to 300 addresses drawn per run from the whole 65,536 range rather than at the address somebody thought to try. `tests/test_st_matches_the_model.py` asserts the ST declarations are identical to the generated address map, so the PLC side cannot drift from the Python side. A test guards against the file silently becoming decoration.
 
 ## ▶️ Running it
 
@@ -376,7 +377,7 @@ its four output expressions against it, so the two cannot drift.
 uv run --group dev pytest -q
 ```
 
-Expect **299 passed**. 100% statement and branch coverage is gated, along with
+Expect **300 passed**. 100% statement and branch coverage is gated, along with
 `ruff` and `mypy --strict`.
 
 To run the plant for a controller to connect to, default port 502:
@@ -390,10 +391,13 @@ full sequence, including a table of state transitions that can be forced from
 the IDE watch window to verify the program **before wiring any IO**. That check
 needs no plant and no network, and it is the cheapest confidence available.
 
-To regenerate the CODESYS project rather than opening the committed one:
+To regenerate the CODESYS project rather than opening the committed one, move
+`plc/codesys/cell.project` aside first (the script refuses to overwrite it) and
+run the script inside CODESYS, since it is IronPython for the CODESYS scripting
+engine and not this project's Python:
 
 ```sh
-python plc/codesys/build_project.py
+"E:\CODESYS\CODESYS\Common\CODESYS.exe" --profile="CODESYS V3.5 SP22 Patch 3" --noUI --runscript="plc\codesysuild_project.py"
 ```
 
 Scenario runs and the traceability matrix regenerate into `report/`:
@@ -408,6 +412,6 @@ hand defeats the point of having them.
 
 ---
 
-Built by **Mo Kamel**, M.Eng. Mechatronic and Cyber-Physical Systems, Technische
+Built by **Mo Kamel**, M.Eng. student in Mechatronic and Cyber-Physical Systems, Technische
 Hochschule Deggendorf.
 [Portfolio](https://mkamel7.github.io) · [LinkedIn](https://linkedin.com/in/mo-kamel7)

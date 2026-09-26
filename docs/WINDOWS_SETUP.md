@@ -22,8 +22,10 @@ binds port 502 and scans the plant every 50 ms. It was the missing piece when
 this guide was first written and it is no longer missing, so step 8 below is now
 a real integration rather than a plan.
 
-**Still not ready.** Scenario runs with OEE, the OPC UA server, and the safety
-channel over PROFIsafe framing. None of them block bringing the program up.
+**Built since this guide was first written.** Scenario runs with OEE
+(`report/oee.md`), the OPC UA server, and the safety channel over PROFIsafe
+framing (`src/vpc/safety_channel.py`, tested but not yet in the live Modbus
+path). None of them block bringing the program up.
 
 ## Choosing the runtime
 
@@ -61,7 +63,7 @@ across two machines is a refinement, not a requirement.
 git clone https://github.com/MKamel7/virtual-production-cell
 ```
 
-The repository is private, so sign in to `gh` or use a token on that machine.
+The repository is public, so no sign in is needed to clone it.
 
 ### 2. Install Python and uv on Windows
 
@@ -277,11 +279,15 @@ produces plausible numbers.
 
 ## What comes after this
 
-1. Scenario runs: bottleneck, station failure, changeover, with OEE per scenario
-2. The OPC UA server, with certificates and sign and encrypt rather than
-   security `None`
-3. The safety channel proper, carrying the guard and reset over the PROFIsafe
-   framing already built and tested in the fault injection harness
+The three items that used to be listed here are built: scenario runs with OEE
+(baseline, guard interruption and starved infeed, in `report/oee.md`), the OPC
+UA server with Basic256Sha256 sign and encrypt, and the PROFIsafe-framed safety
+channel. What is left of them:
+
+1. More scenarios: a bottleneck, a station failure and a changeover
+2. Putting the safety channel into the live path, so the PLC reads the guard
+   and torque state through the protected framing rather than as plain Modbus
+   bits
 
 ## If something does not work
 

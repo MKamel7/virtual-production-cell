@@ -75,7 +75,7 @@
 <text x="532" y="601" fill="#e8eaee" font-size="12">Execute</text>
 <text x="758" y="601" fill="#9aa3af" font-size="10" text-anchor="end">PackTags 6</text>
 <text x="60" y="654" fill="#9aa3af" font-size="11">17 states, 8 explicit command transitions, 11 state-complete transitions. Execute is both: it acts, and it is where product is made.</text>
-<text x="60" y="672" fill="#6f7784" font-size="10">ABORT and STOP are not drawn: both are legal from almost every state and are handled by exemption sets, so fifteen identical arrows would bury the rest.</text>
+<text x="60" y="672" fill="#6f7784" font-size="10">ABORT and STOP are not drawn: both are legal from almost every state and are handled by exemption sets, so 15 Abort and 12 Stop arrows would bury the rest.</text>
 <text x="60" y="690" fill="#6f7784" font-size="10">There is no "state complete" command, deliberately: completion is reported by the machine, never requested.</text>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa3af"/></marker></defs>
 </svg>
