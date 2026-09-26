@@ -17,8 +17,8 @@ below. This README describes what exists, not what is planned.
 
 | | |
 |---|---|
-| **300** | tests, 100% statement **and** branch coverage, gated in CI |
-| **5 → 14 → 28** | hazards to requirements to the tests that verify them, gated in both directions |
+| **304** | tests, 100% statement **and** branch coverage, gated in CI |
+| **5 → 15 → 32** | hazards to requirements to the tests that verify them, gated in both directions |
 | **62.5%** | baseline OEE, against 55.0% with a guard interruption and 46.5% with a starved infeed |
 
 ![the cell running](docs/assets/cell-demo.gif)
@@ -165,7 +165,11 @@ not by itself restore it.
 against the verified Python model, because the ST cannot be executed here. That
 test earned itself immediately: the program declared its power on state as 4,
 with a comment saying Aborted, and 4 is Idle. A controller powering up Idle is
-one command away from running a machine nobody reset.
+one command away from running a machine nobody reset. Losing `SAFETY_OK` aborts
+the cell and holds it in Aborted while torque is withheld, so torque returning
+restarts nothing until the operator commands Clear, Reset and Start (SR-15). That
+interlock is exercised in Python and parsed in the ST, and has not yet been run
+on the CODESYS SoftPLC.
 
 **`src/vpc/modbus.py`** is Modbus TCP, implemented rather than imported. Every
 function in it goes from bytes to bytes with no socket anywhere, which is what
@@ -256,7 +260,7 @@ list could not make.
 | **Plant model** | Python, deterministic and exhaustively tested |
 | **Interfaces** | Modbus TCP, OPC UA with PackTags, ISA-95 hierarchy |
 | **Standards modelled** | PackML state machine, OEE |
-| **Engineering** | 300 tests at 100% branch coverage, GitHub Actions CI, ruff, mypy --strict |
+| **Engineering** | 304 tests at 100% branch coverage, GitHub Actions CI, ruff, mypy --strict |
 
 ## 🛡️ What it does when the link dies
 
@@ -377,7 +381,7 @@ its four output expressions against it, so the two cannot drift.
 uv run --group dev pytest -q
 ```
 
-Expect **300 passed**. 100% statement and branch coverage is gated, along with
+Expect **304 passed**. 100% statement and branch coverage is gated, along with
 `ruff` and `mypy --strict`.
 
 To run the plant for a controller to connect to, default port 502:

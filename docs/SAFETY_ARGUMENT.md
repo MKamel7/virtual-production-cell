@@ -40,7 +40,7 @@ about what the machine does mechanically once torque is removed.
 | The ST matches the verified model | `tests/test_st_matches_the_model.py` | The program cannot be executed here, so it is parsed and compared against the exhaustively verified Python model |
 | The wire layer is exhaustive | `tests/test_modbus.py` | Every function code, exception path, boundary, malformed frame and split point, with no socket |
 | It works against a real client | `pymodbus` interop | A server checked only by the client that shares its assumptions proves self consistency, not a wire format |
-| 300 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
+| 304 tests, 100% branch coverage, ruff and mypy strict | `.github/workflows/verify.yml` | The harness is not the weak link |
 
 ### The traceability gate runs in both directions
 
@@ -105,6 +105,24 @@ Both halves are deliberate. A dropped socket is an infrastructure event, and a
 controller that needs a human to reconnect one is useless. A machine that stopped
 for a reason the controller could not see is a different thing entirely, and the
 only correct response is to wait for somebody who can see it.
+
+### Found by audit rather than by running: torque returning restarted the cell
+
+The link loss above aborts through the watchdog. Losing `SAFETY_OK` on its own
+did not abort anything. It dropped every output, but the state stayed Execute, so
+the outputs came straight back the scan `SAFETY_OK` returned. That is the restart
+ISO 13849-1 and EN 60204-1 forbid, and it contradicted this document's own claim.
+The only thing standing between it and a real restart was that the plant restores
+torque on a rising edge of the reset request.
+
+Now losing `SAFETY_OK` aborts, on the level (SR-15), in the ST and in
+`ReferenceController` alike. The cell cannot leave Aborted while torque is
+withheld, and once torque is back it stays Aborted and still until the operator
+commands Clear, Reset and Start. The Python side is tested end to end and the ST
+is parsed for the abort. The change was pushed into `cell.project` with
+`sync_program.py` and the project compiles in CODESYS V3.5 SP22 Patch 3 with 0
+errors. **It has not yet been run on the SoftPLC**, which is what the step 7
+check in `docs/WINDOWS_SETUP.md` is for.
 
 ## 5. What is NOT verified, and cannot be from here
 

@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 from vpc.cell import Cell
-from vpc.packml import State
-from vpc.process_image import Coil, ProcessImage
+from vpc.packml import Command, State
+from vpc.process_image import Coil, Discrete, ProcessImage
 from vpc.scenario import (
     SCENARIOS,
     Event,
@@ -134,6 +134,79 @@ def test_a_guard_cycle_recovers_only_because_somebody_asked() -> None:
 
     assert cell.torque_available
     assert controller.machine.state is State.EXECUTE
+
+
+def _running_cell() -> tuple[ReferenceController, Cell, ProcessImage]:
+    controller = ReferenceController()
+    controller.wants_to_run = True
+    image, cell = ProcessImage(), Cell()
+    for _ in range(20):
+        image = cell.scan(controller.scan(image))
+    assert controller.machine.state is State.EXECUTE
+    return controller, cell, image
+
+
+@pytest.mark.verifies("SR-15")
+def test_torque_returning_does_not_restart_the_cell_without_a_command() -> None:
+    """The restart interlock. Losing SAFETY_OK aborts, so its return finds the
+    cell Aborted and still, not back in Execute running its outputs.
+
+    Torque is withdrawn with the guard shut, so the guard edge abort cannot be
+    what stops the cell. Nobody commands anything while it is away.
+    """
+    controller, cell, image = _running_cell()
+    controller.wants_to_run = False
+
+    cell.torque_available = False
+    for _ in range(6):
+        image = cell.scan(controller.scan(image))
+    assert controller.machine.state is State.ABORTED
+
+    assert cell.reset_safety()
+    for _ in range(20):
+        image = cell.scan(controller.scan(image))
+
+    assert image.discretes[Discrete.SAFETY_OK]
+    assert controller.machine.state is State.ABORTED
+    assert not any(image.coils[c] for c in Coil if c is not Coil.SAFETY_RESET_REQUEST)
+
+
+@pytest.mark.verifies("SR-15")
+def test_the_cell_resumes_after_the_operator_commands_it_back() -> None:
+    """The other half: the interlock holds until the commands, then lets go."""
+    controller, cell, image = _running_cell()
+    controller.wants_to_run = False
+    cell.torque_available = False
+    for _ in range(6):
+        image = cell.scan(controller.scan(image))
+    cell.reset_safety()
+    for _ in range(6):
+        image = cell.scan(controller.scan(image))
+    before = cell.produced
+
+    controller.wants_to_run = True
+    for _ in range(60):
+        image = cell.scan(controller.scan(image))
+
+    assert controller.machine.state is State.EXECUTE
+    assert cell.produced > before
+
+
+@pytest.mark.verifies("SR-15")
+def test_the_cell_cannot_be_cleared_while_torque_is_withheld() -> None:
+    """Level, not edge: a Clear sent without torque is aborted again, so the
+    cell cannot be walked to Execute and then started by torque arriving."""
+    controller, cell, image = _running_cell()
+    controller.wants_to_run = False
+    cell.torque_available = False
+    for _ in range(6):
+        image = cell.scan(controller.scan(image))
+
+    controller.machine.send(Command.CLEAR)
+    for _ in range(10):
+        image = cell.scan(controller.scan(image))
+
+    assert controller.machine.state is State.ABORTED
 
 
 def test_an_operator_stopping_leaves_the_cell_where_it_is() -> None:

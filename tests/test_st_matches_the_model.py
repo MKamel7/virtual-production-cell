@@ -127,6 +127,25 @@ def test_outputs_are_dropped_whenever_torque_is_withheld() -> None:
         )
 
 
+@pytest.mark.verifies("SR-15")
+def test_losing_torque_aborts_on_the_level_before_the_state_machine() -> None:
+    """The restart interlock, in the ST.
+
+    Dropping the outputs alone is not enough: the state stayed Execute, so the
+    outputs came straight back with SAFETY_OK. Aborting inside the SAFETY_OK
+    block, every scan it is false, means only Clear, Reset and Start can bring
+    the cell back, and none of them can while torque is withheld.
+    """
+    body = source()
+    guard = body.index("IF NOT SAFETY_OK THEN")
+    assert guard < body.index("PackML state machine")
+    assert re.search(r"CmdAbort\s*:=\s*TRUE;",
+                     body[guard:body.index("END_IF;", guard)]), (
+        "losing SAFETY_OK does not abort, so the cell resumes the moment "
+        "torque returns"
+    )
+
+
 def test_the_io_declarations_are_the_generated_ones() -> None:
     """Two copies of an address map is one copy plus a future defect."""
     from vpc.process_image import structured_text_declarations

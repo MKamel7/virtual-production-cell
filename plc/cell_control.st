@@ -140,6 +140,12 @@ IF NOT SAFETY_OK THEN
     FILLER_DOSE    := FALSE;
     CAPPER_ACTUATE := FALSE;
     REJECT_EJECT   := FALSE;
+
+    (* Restart interlock. Losing torque aborts, on the level rather than the
+       edge, so the machine cannot leave Aborted while torque is withheld.
+       SAFETY_OK returning finds the cell Aborted with every output low, and
+       only Clear, Reset and Start bring it back to Execute. *)
+    CmdAbort := TRUE;
 END_IF;
 
 (* ------------------------------------------------------------------

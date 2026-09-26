@@ -216,6 +216,19 @@ requirements:
       controller reacting differently to a bad checksum than to a stale counter
       would be making a safety decision out of a diagnosis.
 
+  - id: SR-15
+    goal: SG-02
+    text: >-
+      Loss of SAFETY_OK shall abort the cell, and shall keep aborting it for as
+      long as SAFETY_OK is false, so that its return restarts nothing until the
+      operator commands Clear, Reset and Start
+    rationale: >-
+      Dropping the outputs alone left the machine in Execute, so the outputs
+      came straight back with torque. That is the restart ISO 13849-1 and EN
+      60204-1 forbid, a safety signal returning and motion resuming by itself.
+      Level rather than edge, unlike the guard, so the cell cannot be walked to
+      Execute without torque and then started by torque arriving.
+
   - id: SR-12
     goal: SG-03
     text: >-

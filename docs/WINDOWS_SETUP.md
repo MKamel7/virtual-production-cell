@@ -153,7 +153,12 @@ Two properties matter more than the sequencing and are quick to check:
 - Force `SAFETY_OK` low. Every actuator output must drop immediately regardless
   of state, and must **not** come back when `SAFETY_OK` returns until a reset
   has been commanded. A machine that restarts the moment a door shuts is a
-  machine that restarts while somebody is still inside it.
+  machine that restarts while somebody is still inside it. Concretely:
+  `PMLState` goes to 8 then 9 and stays 9 for as long as `SAFETY_OK` is low,
+  even if `CmdClear` is pulsed. Release the force and it must **still** read 9
+  with every output low. Only `CmdClear`, `CmdReset` and `CmdStart` bring it
+  back to 6. This interlock (SR-15) is tested in Python and parsed in the ST,
+  but has not yet been run on the SoftPLC, so this is the check that proves it.
 
 ### 8. Connect the runtime to the plant
 

@@ -20,7 +20,6 @@ The ST remains the thing that runs on a real machine.
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -86,6 +85,10 @@ class ReferenceController:
         if self.guard_was_closed and not guard_closed:
             self._abort()
         self.guard_was_closed = guard_closed
+        # Restart interlock, on the level: the machine cannot leave Aborted
+        # while torque is withheld, so SAFETY_OK returning restarts nothing.
+        if not safety_ok:
+            self._abort()
 
         # --- the state machine, advanced one step per scan
         self._advance_state(safety_ok)
@@ -115,9 +118,13 @@ class ReferenceController:
         # state arriving early, so the refusal is suppressed rather than
         # handled. The state machine raises rather than ignoring illegal
         # commands everywhere else, and that is right: this is the one caller
-        # that genuinely does not care.
-        with contextlib.suppress(IllegalCommand):
+        # that genuinely does not care. The timer restarts only on an accepted
+        # abort, as in the ST: resetting it on a refused one would hold a level
+        # triggered abort in Aborting forever.
+        try:
             self.machine.send(Command.ABORT)
+        except IllegalCommand:
+            return
         self.acting_timer = 0
 
     def _advance_state(self, safety_ok: bool) -> None:
